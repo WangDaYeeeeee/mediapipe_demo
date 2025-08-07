@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iOS 摄像头权限测试</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+    .warning { background: #fff3cd; color: #856404; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 16px;
+      -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+    .video-test {
+      width: 100%;
+      max-width: 400px;
+      height: 300px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    #testVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .instructions {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 15px;
+      margin: 15px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>📱 iOS Safari 摄像头权限测试</h1>
+  
+  <div class="test-section">
+    <h2>设备信息</h2>
+    <div id="device-info" class="status info">检测中...</div>
+  </div>
+  
+  <div class="test-section">
+    <h2>权限状态检查</h2>
+    <div id="permission-status" class="status info">等待检查...</div>
+    <button onclick="checkPermissions()">检查权限状态</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>摄像头测试</h2>
+    <div id="camera-status" class="status info">等待测试...</div>
+    <div class="video-test">
+      <video id="testVideo" autoplay muted playsinline webkit-playsinline></video>
+    </div>
+    <button onclick="testCamera()">测试摄像头</button>
+    <button onclick="stopCamera()">停止摄像头</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>iOS 特定设置</h2>
+    <div class="instructions">
+      <h3>如果遇到权限问题，请尝试以下步骤：</h3>
+      <ol>
+        <li><strong>设置 → Safari → 摄像头</strong>：确保允许网站访问摄像头</li>
+        <li><strong>设置 → 隐私与安全性 → 摄像头</strong>：确保 Safari 有权限</li>
+        <li><strong>刷新页面</strong>：重新加载页面</li>
+        <li><strong>重启 Safari</strong>：完全关闭 Safari 后重新打开</li>
+      </ol>
+    </div>
+  </div>
+  
+  <div class="test-section">
+    <h2>跳转到主应用</h2>
+    <p>如果以上测试都通过，您可以尝试访问主应用：</p>
+    <button onclick="window.open('http://172.20.10.5:3000', '_blank')">打开人脸检测应用</button>
+  </div>
+
+  <script>
+    let currentStream = null;
+    
+    // 检测设备信息
+    function detectDevice() {
+      const userAgent = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+      const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
+      const isIOSSafari = isIOS && isSafari;
+      
+      const deviceInfo = document.getElementById('device-info');
+      deviceInfo.className = 'status info';
+      deviceInfo.innerHTML = `
+        <strong>设备信息：</strong><br>
+        - 用户代理: ${userAgent.substring(0, 100)}...<br>
+        - iOS 设备: ${isIOS ? '是' : '否'}<br>
+        - Safari 浏览器: ${isSafari ? '是' : '否'}<br>
+        - iOS Safari: ${isIOSSafari ? '是' : '否'}<br>
+        - 支持 getUserMedia: ${navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? '是' : '否'}
+      `;
+    }
+    
+    // 检查权限状态
+    async function checkPermissions() {
+      const statusEl = document.getElementById('permission-status');
+      statusEl.className = 'status info';
+      statusEl.textContent = '检查中...';
+      
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('浏览器不支持摄像头访问');
+        }
+        
+        if (navigator.permissions && navigator.permissions.query) {
+          const permission = await navigator.permissions.query({ name: 'camera' });
+          statusEl.className = 'status success';
+          statusEl.innerHTML = `
+            <strong>权限状态：</strong> ${permission.state}<br>
+            <strong>权限描述：</strong><br>
+            - granted: 已授权<br>
+            - denied: 已拒绝<br>
+            - prompt: 需要用户授权
+          `;
+        } else {
+          statusEl.className = 'status warning';
+          statusEl.textContent = '浏览器不支持权限查询 API，将直接尝试访问摄像头';
+        }
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `权限检查失败: ${error.message}`;
+      }
+    }
+    
+    // 测试摄像头
+    async function testCamera() {
+      const statusEl = document.getElementById('camera-status');
+      const videoEl = document.getElementById('testVideo');
+      
+      statusEl.className = 'status info';
+      statusEl.textContent = '正在请求摄像头权限...';
+      
+      try {
+        // 停止之前的流
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // 请求摄像头权限
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640, min: 320 },
+            height: { ideal: 480, min: 240 },
+            facingMode: 'user',
+            frameRate: { ideal: 30, min: 15 }
+          },
+          audio: false
+        });
+        
+        currentStream = stream;
+        videoEl.srcObject = stream;
+        
+        // 针对 iOS 的特殊处理
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+          videoEl.addEventListener('loadedmetadata', () => {
+            videoEl.play().then(() => {
+              statusEl.className = 'status success';
+              statusEl.textContent = '✅ iOS 摄像头测试成功！视频正在播放。';
+            }).catch((error) => {
+              statusEl.className = 'status error';
+              statusEl.textContent = `❌ iOS 视频播放失败: ${error.message}`;
+            });
+          });
+        } else {
+          videoEl.addEventListener('loadeddata', () => {
+            statusEl.className = 'status success';
+            statusEl.textContent = '✅ 摄像头测试成功！视频正在播放。';
+          });
+        }
+        
+      } catch (error) {
+        statusEl.className = 'status error';
+        
+        let errorMessage = '摄像头测试失败';
+        if (error instanceof DOMException) {
+          switch (error.name) {
+            case 'NotAllowedError':
+              errorMessage = '❌ 摄像头权限被拒绝。请在 iOS 设置中允许 Safari 访问摄像头。';
+              break;
+            case 'NotFoundError':
+              errorMessage = '❌ 未找到摄像头设备';
+              break;
+            case 'NotReadableError':
+              errorMessage = '❌ 摄像头被其他应用占用，请关闭其他使用摄像头的应用';
+              break;
+            case 'OverconstrainedError':
+              errorMessage = '❌ 摄像头不支持请求的分辨率';
+              break;
+            default:
+              errorMessage = `❌ 摄像头错误: ${error.message}`;
+          }
+        }
+        
+        statusEl.textContent = errorMessage;
+      }
+    }
+    
+    // 停止摄像头
+    function stopCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+      
+      const videoEl = document.getElementById('testVideo');
+      videoEl.srcObject = null;
+      
+      const statusEl = document.getElementById('camera-status');
+      statusEl.className = 'status info';
+      statusEl.textContent = '摄像头已停止';
+    }
+    
+    // 页面加载时自动检测设备
+    document.addEventListener('DOMContentLoaded', () => {
+      detectDevice();
+      checkPermissions();
+    });
+  </script>
+</body>
+</html> 
