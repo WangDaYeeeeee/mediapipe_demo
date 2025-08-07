@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaPipe 测试页面</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>MediaPipe FaceLandmarker 功能测试</h1>
+  
+  <div class="test-section">
+    <h2>1. 依赖检查</h2>
+    <div id="dependency-status" class="status info">检查中...</div>
+    <button onclick="checkDependencies()">重新检查</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>2. 模型加载测试</h2>
+    <div id="model-status" class="status info">等待测试...</div>
+    <button onclick="testModelLoading()">测试模型加载</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>3. 摄像头权限测试</h2>
+    <div id="camera-status" class="status info">等待测试...</div>
+    <button onclick="testCamera()">测试摄像头</button>
+  </div>
+  
+  <div class="test-section">
+    <h2>4. 完整功能测试</h2>
+    <p>点击下面的按钮跳转到完整的人脸检测应用：</p>
+    <button onclick="window.open('http://localhost:3000', '_blank')">打开人脸检测应用</button>
+  </div>
+
+  <script type="module">
+    import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+    
+    window.checkDependencies = async function() {
+      const statusEl = document.getElementById('dependency-status');
+      statusEl.className = 'status info';
+      statusEl.textContent = '检查中...';
+      
+      try {
+        // 检查 MediaPipe 是否可用
+        if (typeof FaceLandmarker === 'undefined') {
+          throw new Error('MediaPipe FaceLandmarker 不可用');
+        }
+        
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ MediaPipe 依赖加载成功';
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `❌ 依赖检查失败: ${error.message}`;
+      }
+    };
+    
+    window.testModelLoading = async function() {
+      const statusEl = document.getElementById('model-status');
+      statusEl.className = 'status info';
+      statusEl.textContent = '加载中...';
+      
+      try {
+        const filesetResolver = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        );
+        
+        const faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+          baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+            delegate: "GPU"
+          },
+          outputFaceBlendshapes: true,
+          runningMode: "VIDEO",
+          numFaces: 1
+        });
+        
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ 模型加载成功';
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `❌ 模型加载失败: ${error.message}`;
+      }
+    };
+    
+    window.testCamera = async function() {
+      const statusEl = document.getElementById('camera-status');
+      statusEl.className = 'status info';
+      statusEl.textContent = '请求摄像头权限...';
+      
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('浏览器不支持摄像头访问');
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        
+        // 立即停止流
+        stream.getTracks().forEach(track => track.stop());
+        
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ 摄像头权限获取成功';
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `❌ 摄像头测试失败: ${error.message}`;
+      }
+    };
+    
+    // 页面加载时自动检查依赖
+    document.addEventListener('DOMContentLoaded', () => {
+      checkDependencies();
+    });
+  </script>
+</body>
+</html> 
