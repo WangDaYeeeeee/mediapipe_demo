@@ -35,11 +35,13 @@
       overflow: hidden;
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
       background: #000;
+      width: 100%;
+      max-width: 640px;
+      min-height: 300px;
     }
     
     #video {
       width: 100%;
-      max-width: 640px;
       height: auto;
       display: block;
       /* iOS Safari 特定样式 */
@@ -143,6 +145,62 @@
       button {
         -webkit-user-select: none;
         user-select: none;
+      }
+    }
+    
+    /* 移动端优化 */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 10px;
+      }
+      
+      .video-container {
+        margin: 10px auto;
+        border-radius: 8px;
+        min-height: 250px;
+      }
+      
+      h1 {
+        font-size: 24px;
+        margin-bottom: 15px;
+      }
+      
+      button {
+        padding: 10px 20px;
+        font-size: 14px;
+        margin: 0 5px;
+      }
+      
+      .status {
+        font-size: 12px;
+        padding: 8px;
+      }
+      
+      .debug-section {
+        margin-top: 15px;
+        padding: 10px;
+      }
+      
+      #debugLog {
+        font-size: 10px;
+        max-height: 150px;
+      }
+    }
+    
+    /* 超小屏幕优化 */
+    @media (max-width: 480px) {
+      .video-container {
+        min-height: 200px;
+      }
+      
+      h1 {
+        font-size: 20px;
+      }
+      
+      button {
+        padding: 8px 16px;
+        font-size: 13px;
+        margin: 0 3px;
       }
     }
     

@@ -121,9 +121,10 @@ class FaceDetectionDemo {
       this.logDebug('开始请求摄像头权限...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user'
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          facingMode: 'user',
+          aspectRatio: { ideal: 16/9 }
         } 
       });
       
@@ -194,14 +195,23 @@ class FaceDetectionDemo {
   }
   
   private async predictWebcam(): Promise<void> {
-    // 设置视频和canvas尺寸
-    const videoWidth = 640;
-    const radio = this.video.videoHeight / this.video.videoWidth;
+    // 获取容器尺寸，适配移动端
+    const container = this.video.parentElement;
+    const containerWidth = container ? container.clientWidth : window.innerWidth;
+    const maxWidth = Math.min(containerWidth - 40, 640); // 减去边距，最大640px
     
+    // 计算视频尺寸，保持宽高比
+    const videoAspectRatio = this.video.videoHeight / this.video.videoWidth;
+    const videoWidth = maxWidth;
+    const videoHeight = maxWidth * videoAspectRatio;
+    
+    // 设置视频和canvas的CSS尺寸
     this.video.style.width = videoWidth + "px";
-    this.video.style.height = videoWidth * radio + "px";
+    this.video.style.height = videoHeight + "px";
     this.canvas.style.width = videoWidth + "px";
-    this.canvas.style.height = videoWidth * radio + "px";
+    this.canvas.style.height = videoHeight + "px";
+    
+    // 设置canvas的实际尺寸（用于绘制）
     this.canvas.width = this.video.videoWidth;
     this.canvas.height = this.video.videoHeight;
     
