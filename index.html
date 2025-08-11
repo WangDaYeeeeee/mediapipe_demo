@@ -118,42 +118,6 @@
       z-index: 5;
     }
 
-    /* 按钮区域 */
-    .button-area {
-      display: flex;
-      gap: 15px;
-      margin-top: 10px;
-    }
-
-    .btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 25px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 500;
-      transition: all 0.3s ease;
-      min-width: 100px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .btn.terminate {
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-    }
-
     /* 结果展示区域 */
     .result-area {
       display: none;
@@ -295,12 +259,6 @@
       <div class="progress-step" data-step="blink"></div>
       <div class="progress-step" data-step="mouth"></div>
       <div class="progress-step" data-step="light"></div>
-    </div>
-
-    <!-- 按钮区域 -->
-    <div class="button-area">
-      <button class="btn" id="startBtn">开始核验</button>
-      <button class="btn terminate" id="terminateBtn" disabled>终止</button>
     </div>
 
     <!-- 结果展示区域 -->

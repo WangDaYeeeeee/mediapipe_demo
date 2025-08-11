@@ -21,42 +21,46 @@ interface DetectingConfigs {
 
 export class FaceDetector {
 
-  private faceLandmarker: FaceLandmarker|undefined;
-  private drawingUtils: DrawingUtils|undefined;
-  private readonly ctx: CanvasRenderingContext2D|undefined;
+  private readonly faceLandmarker: FaceLandmarker;
+  private readonly drawingUtils: DrawingUtils;
+  private readonly ctx: CanvasRenderingContext2D;
   private readonly configs: DetectingConfigs | undefined;
   private readonly canvasSizer: () => CanvaseSize;
 
-  constructor(params: {
+  public static async create(params: {
     cpuContext: CanvasRenderingContext2D,
     configs?: DetectingConfigs | undefined,
     canvasSizer: () => CanvaseSize
-  }) {
-    this.initializeMediaPipe(params.cpuContext);
-    this.ctx = params.cpuContext;
-    this.configs = params.configs;
-    this.canvasSizer = params.canvasSizer;
+  }): Promise<FaceDetector> {
+    const filesetResolver = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+    );
+    const faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+      baseOptions: {
+        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+        delegate: "GPU"
+      },
+      outputFaceBlendshapes: true,
+      outputFacialTransformationMatrixes: true,
+      runningMode: "VIDEO",
+      numFaces: 1
+    });
+    const drawingUtils = new DrawingUtils(params.cpuContext);
+    return new FaceDetector(faceLandmarker, drawingUtils, params.cpuContext, params.configs, params.canvasSizer);
   }
 
-  private async initializeMediaPipe(cpuContext: CanvasRenderingContext2D): Promise<void> {
-    try {      
-      const filesetResolver = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-      );
-      this.faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
-        baseOptions: {
-          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-          delegate: "GPU"
-        },
-        outputFaceBlendshapes: true,
-        outputFacialTransformationMatrixes: true,
-        runningMode: "VIDEO",
-        numFaces: 1
-      });
-      this.drawingUtils = new DrawingUtils(cpuContext);
-    } catch (error) {
-      console.error('初始化人脸检测失败:', error);
-    }
+  constructor(
+    faceLandmarker: FaceLandmarker,
+    drawingUtils: DrawingUtils,
+    ctx: CanvasRenderingContext2D,
+    configs: DetectingConfigs | undefined,
+    canvasSizer: () => CanvaseSize
+  ) {
+    this.faceLandmarker = faceLandmarker;
+    this.drawingUtils = drawingUtils;
+    this.ctx = ctx;
+    this.configs = configs;
+    this.canvasSizer = canvasSizer;
   }
 
   public detect(videoFrame: TexImageSource): SingleFaceLandmarkerResult | string {
@@ -294,7 +298,7 @@ export class FaceDetector {
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
     const leftEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkLeft') ?? 0;
     const rightEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkRight') ?? 0;
-    const blinkThreshold = 0.8;
+    const blinkThreshold = 0.7;
     return leftEyeBlinkScore > blinkThreshold && rightEyeBlinkScore > blinkThreshold
   }
 
