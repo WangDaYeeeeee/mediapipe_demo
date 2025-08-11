@@ -97,6 +97,10 @@ class FaceVerification {
     this.updateTip('正在加载模型...');
     this.faceDetector = new FaceDetector({
       cpuContext: this.ctx,
+      configs: {
+        drawFaceLandmarks: true,
+        drawPositionGuide: true
+      },
       canvasSizer: () => ({ width: this.canvas.width, height: this.canvas.height })
     });
     this.updateTip('请将脸部对准圆形取景器');
@@ -118,7 +122,7 @@ class FaceVerification {
           width: { ideal: 1280, min: 640 },
           height: { ideal: 720, min: 480 },
           facingMode: 'user',
-          aspectRatio: { ideal: 16/9 }
+          aspectRatio: { exact: 1 }
         } 
       });
       this.video.addEventListener('loadeddata', () => {
@@ -244,6 +248,8 @@ class FaceVerification {
         this.updateTip(result);
         this.checkStepCompletion();
       } else {
+        this.faceCentered = true;
+
         const blinkDetected = this.faceDetector?.detectBlink(result);
         if (blinkDetected) {
           this.blinkDetected = true;
