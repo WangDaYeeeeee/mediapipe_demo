@@ -269,32 +269,28 @@ export class FaceDetector {
       [matrix.data[8], matrix.data[9], matrix.data[10]]
     ];
     
-    // 计算欧拉角（yaw, pitch, roll）
-    const yaw = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
-    const pitch = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
-    const roll = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
+    const faceUpOrDown = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
+    const faceTurnLeftOrRight = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
+    const faceTilt = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
 
-    // 检查人脸是否正对摄像头
-    const yawThreshold = 10; // 左右转动阈值
-    const pitchThreshold = 10; // 上下点头阈值
-    const rollThreshold = 10; // 头部倾斜阈值
+    const threshold = 10; // 阈值
 
     // 检查三个角度是否都在阈值范围内
-    const isYawOK = Math.abs(yaw) < yawThreshold;
-    if (!isYawOK) {
+    const isFaceUpOrDown = Math.abs(faceUpOrDown) > threshold;
+    const isFaceTurnLeftOrRight = Math.abs(faceTurnLeftOrRight) > threshold;
+    const isFaceTilt = Math.abs(faceTilt) > threshold;
+    if (isFaceUpOrDown && !isFaceTurnLeftOrRight && !isFaceTilt) {
+      return '请不要低头或仰头';
+    }
+    if (!isFaceUpOrDown && isFaceTurnLeftOrRight && !isFaceTilt) {
       return '请不要左右转头';
     }
-
-    const isPitchOK = Math.abs(pitch) < pitchThreshold;
-    if (!isPitchOK) {
-      return '请不要抬头或低头';
-    }
-
-    const isRollOK = Math.abs(roll) < rollThreshold;
-    if (!isRollOK) {
+    if (!isFaceUpOrDown && !isFaceTurnLeftOrRight && isFaceTilt) {
       return '请不要歪头';
     }
-
+    if (isFaceUpOrDown || isFaceTurnLeftOrRight || isFaceTilt) {
+      return '正对镜头，避免低头、仰头、转头、歪头';
+    }
     return undefined;
   }
 
