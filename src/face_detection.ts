@@ -26,11 +26,6 @@ export class FaceDetector {
   private readonly ctx: CanvasRenderingContext2D|undefined;
   private readonly configs: DetectingConfigs | undefined;
   private readonly canvasSizer: () => CanvaseSize;
-  
-  // // 人脸位置检测相关状态
-  // private facePositionHistory: Array<{x: number, y: number, size: number, orientation: {yaw: number, pitch: number, roll: number}}> = [];
-  // private readonly POSITION_HISTORY_SIZE = 10; // 保存最近10帧的位置信息
-  // private readonly STABILITY_THRESHOLD = 0.8; // 稳定性阈值
 
   constructor(params: {
     cpuContext: CanvasRenderingContext2D,
@@ -279,19 +274,21 @@ export class FaceDetector {
     const isFaceUpOrDown = Math.abs(faceUpOrDown) > threshold;
     const isFaceTurnLeftOrRight = Math.abs(faceTurnLeftOrRight) > threshold;
     const isFaceTilt = Math.abs(faceTilt) > threshold;
-    if (isFaceUpOrDown && !isFaceTurnLeftOrRight && !isFaceTilt) {
-      return '请不要低头或仰头';
+    if (!isFaceUpOrDown && !isFaceTurnLeftOrRight && !isFaceTilt) {
+      return undefined;
     }
-    if (!isFaceUpOrDown && isFaceTurnLeftOrRight && !isFaceTilt) {
-      return '请不要左右转头';
+
+    const array: string[] = [];
+    if (isFaceUpOrDown) {
+      array.push('仰头或低头');
     }
-    if (!isFaceUpOrDown && !isFaceTurnLeftOrRight && isFaceTilt) {
-      return '请不要歪头';
+    if (isFaceTurnLeftOrRight) {  
+      array.push('左右转头');
     }
-    if (isFaceUpOrDown || isFaceTurnLeftOrRight || isFaceTilt) {
-      return '正对镜头，避免低头、仰头、转头、歪头';
+    if (isFaceTilt) {
+      array.push('歪头');  
     }
-    return undefined;
+    return '请正对镜头，避免' + array.join('、');
   }
 
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
