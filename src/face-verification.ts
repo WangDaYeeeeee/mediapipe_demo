@@ -32,7 +32,6 @@ class FaceVerification {
   private faceLandmarker: FaceLandmarker|undefined;
   private drawingUtils: DrawingUtils|undefined;
   private webcamRunning: boolean = false;
-  private lastVideoTime: number = -1;
   
   // 核验状态
   private isVerifying: boolean = false;
@@ -250,12 +249,7 @@ class FaceVerification {
 
     try {
       const startTimeMs = performance.now();
-      
-      let results: FaceLandmarkerResult|undefined;
-      if (this.lastVideoTime !== this.video.currentTime) {
-        this.lastVideoTime = this.video.currentTime;
-        results = this.faceLandmarker?.detectForVideo(this.video, startTimeMs);
-      }
+      const results = this.faceLandmarker?.detectForVideo(this.video, startTimeMs);
 
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -270,7 +264,7 @@ class FaceVerification {
 
       if (singleResult) {
         this.detectFaceActions(singleResult);
-        this.drawFaceLandmarks(singleResult);
+        // this.drawFaceLandmarks(singleResult);
         this.checkStepCompletion();
       } else {
         this.resetStepStates();
@@ -338,7 +332,7 @@ class FaceVerification {
 
     const leftEyeBlinkScore = blendshapesMap.get('eyeBlinkLeft') ?? 0;
     const rightEyeBlinkScore = blendshapesMap.get('eyeBlinkRight') ?? 0;
-    const blinkThreshold = 0.7;
+    const blinkThreshold = 0.8;
     
     if (leftEyeBlinkScore > blinkThreshold || rightEyeBlinkScore > blinkThreshold) {
       this.blinkDetected = true;
@@ -350,7 +344,7 @@ class FaceVerification {
       (prev, current) => prev.set(current.displayName || current.categoryName, current.score), new Map());
 
     const mouthOpenScroe = blendshapesMap.get('jawOpen') ?? 0;
-    const mouthOpenThreshold = 0.4;
+    const mouthOpenThreshold = 0.6;
     
     if (mouthOpenScroe > mouthOpenThreshold) {
       this.mouthOpenDetected = true;
@@ -396,7 +390,7 @@ class FaceVerification {
     
     const step = this.verificationSteps[this.currentStep];
     const currentTime = Date.now();
-    const stepDuration = step.duration || 3000;
+    const stepDuration = 0;
     
     if (step.condition() && (currentTime - this.stepStartTime) >= stepDuration) {
       this.currentStep++;
