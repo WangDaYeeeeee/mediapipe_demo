@@ -275,7 +275,7 @@
         const eyeAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 180 / Math.PI;
         const roll = eyeAngle;
         
-        // 计算yaw（左右转动）- 简化版本
+        // 计算yaw（左右摇头）- 简化版本
         const eyeCenterX = (leftEye.x + rightEye.x) / 2;
         const yaw = (nose.x - eyeCenterX) * 100; // 简化的yaw计算
         
@@ -315,11 +315,11 @@
           let tipText = '请调整：';
           
           if (Math.abs(yaw) > 15) {
-            tipText += yaw > 0 ? '向左转' : '向右转';
+            tipText += yaw > 0 ? '向右摇头' : '向左摇头';
           } else if (Math.abs(pitch) > 15) {
-            tipText += pitch > 0 ? '向下看' : '向上看';
+            tipText += pitch > 0 ? '向下点头' : '向上点头';
           } else if (Math.abs(roll) > 15) {
-            tipText += roll > 0 ? '向左倾斜' : '向右倾斜';
+            tipText += roll > 0 ? '向右倾斜' : '向左倾斜';
           }
           
           tip.textContent = tipText;

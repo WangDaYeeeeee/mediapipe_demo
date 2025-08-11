@@ -26,11 +26,6 @@ export class FaceDetector {
   private readonly ctx: CanvasRenderingContext2D|undefined;
   private readonly configs: DetectingConfigs | undefined;
   private readonly canvasSizer: () => CanvaseSize;
-  
-  // // 人脸位置检测相关状态
-  // private facePositionHistory: Array<{x: number, y: number, size: number, orientation: {yaw: number, pitch: number, roll: number}}> = [];
-  // private readonly POSITION_HISTORY_SIZE = 10; // 保存最近10帧的位置信息
-  // private readonly STABILITY_THRESHOLD = 0.8; // 稳定性阈值
 
   constructor(params: {
     cpuContext: CanvasRenderingContext2D,
@@ -269,33 +264,31 @@ export class FaceDetector {
       [matrix.data[8], matrix.data[9], matrix.data[10]]
     ];
     
-    // 计算欧拉角（yaw, pitch, roll）
-    const yaw = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
-    const pitch = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
-    const roll = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
+    const faceUpOrDown = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
+    const faceTurnLeftOrRight = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
+    const faceTilt = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
 
-    // 检查人脸是否正对摄像头
-    const yawThreshold = 10; // 左右转动阈值
-    const pitchThreshold = 10; // 上下点头阈值
-    const rollThreshold = 10; // 头部倾斜阈值
+    const threshold = 10; // 阈值
 
     // 检查三个角度是否都在阈值范围内
-    const isYawOK = Math.abs(yaw) < yawThreshold;
-    if (!isYawOK) {
-      return '请不要左右转头';
+    const isFaceUpOrDown = Math.abs(faceUpOrDown) > threshold;
+    const isFaceTurnLeftOrRight = Math.abs(faceTurnLeftOrRight) > threshold;
+    const isFaceTilt = Math.abs(faceTilt) > threshold;
+    if (!isFaceUpOrDown && !isFaceTurnLeftOrRight && !isFaceTilt) {
+      return undefined;
     }
 
-    const isPitchOK = Math.abs(pitch) < pitchThreshold;
-    if (!isPitchOK) {
-      return '请不要抬头或低头';
+    const array: string[] = [];
+    if (isFaceUpOrDown) {
+      array.push('仰头或低头');
     }
-
-    const isRollOK = Math.abs(roll) < rollThreshold;
-    if (!isRollOK) {
-      return '请不要歪头';
+    if (isFaceTurnLeftOrRight) {  
+      array.push('左右转头');
     }
-
-    return undefined;
+    if (isFaceTilt) {
+      array.push('歪头');  
+    }
+    return '请正对镜头，避免' + array.join('、');
   }
 
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
