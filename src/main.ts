@@ -20,7 +20,7 @@ class FaceVerification {
   private progressIndicator!: HTMLDivElement;
   private colorBackground!: HTMLDivElement;
   
-  private faceDetector: FaceDetector|undefined;
+  private faceDetector!: FaceDetector;
   private webcamRunning: boolean = false;
   
   // 核验状态
@@ -220,26 +220,6 @@ class FaceVerification {
 
   private async predictWebcam(): Promise<void> {
     if (!this.webcamRunning || !this.isVerifying) return;
-
-    // // 获取容器尺寸，适配移动端
-    // const container = this.video.parentElement;
-    // const containerWidth = container ? container.clientWidth : window.innerWidth;
-    // const maxWidth = Math.min(containerWidth - 40, 640); // 减去边距，最大640px
-
-    // // 计算视频尺寸，保持宽高比
-    // const videoAspectRatio = this.video.videoHeight / this.video.videoWidth;
-    // const videoWidth = maxWidth;
-    // const videoHeight = maxWidth * videoAspectRatio;
-
-    // // 设置视频和canvas的CSS尺寸
-    // this.video.style.width = videoWidth + "px";
-    // this.video.style.height = videoHeight + "px";
-    // this.canvas.style.width = videoWidth + "px";
-    // this.canvas.style.height = videoHeight + "px";
-    // // 设置canvas的实际尺寸（用于绘制）
-    // this.canvas.width = this.video.videoWidth;
-    // this.canvas.height = this.video.videoHeight;
-
     try {
       const result = this.faceDetector?.detect(this.video);
       if (result === undefined) {
