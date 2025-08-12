@@ -1,4 +1,5 @@
 import { FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
+import { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { VideoFrameBuffer } from "./video_buffer";
 
 // 页面加载完成后初始化应用
@@ -13,6 +14,21 @@ interface UIState {
 type VerificationStep = 'preparing' | 'error' | 'detecting_blink' | 'detecting_mouth_open' | 'dazzling' | 'done';
 
 type OnFrame = (frame: string | SingleFaceLandmarkerResult) => void;
+
+interface ReflectDataSuccess {
+  readonly colorData: "1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a";
+  readonly colorList: [
+    "[0,0,0,76]", "[115,26,67,159]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
+    "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
+    "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
+  ];
+  reflectFrames: {
+    readonly frame: string;
+    readonly time: number;
+    readonly x: number;
+    readonly y: number;
+  }[];
+}
 
 class FaceVerification {
   private video!: HTMLVideoElement;
@@ -184,17 +200,20 @@ class FaceVerification {
     // this.downloadFile(mouthOpenBlob, 'action_2.mp4');
 
     // 活体检测（炫彩）
-    await this.dazzle((frame) => {
+    const reflectDataSuccess = await this.dazzle((frame) => {
       if (typeof frame === 'string') {
         this.updateUI('dazzling', { tipMessage: frame });
       } else {
         this.updateUI('dazzling', { tipMessage: '请保持不动' });
       }
     });
+    console.log('reflectDataSuccess', reflectDataSuccess);
+    // 复制结果到剪切板
+    await this.copyToClipboard(reflectDataSuccess);
 
-    this.updateUI('done', { tipMessage: '核验完成，请稍等' });
+    this.updateUI('done', { tipMessage: '核验完成，结果已复制到剪切板' });
     // 捕获照片
-    const photo = this.capturePhoto();
+    const photo = this.capturePhoto().base64;
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();
@@ -260,38 +279,76 @@ class FaceVerification {
     });
   }
 
-  private async dazzle(onFrame: OnFrame): Promise<void> {
-    this.onFrame = (frame) => {
-      onFrame(frame);
+  private async dazzle(onFrame: OnFrame): Promise<ReflectDataSuccess> {
+    const result: ReflectDataSuccess = {
+      colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
+      colorList: [
+        "[0,0,0,76]", "[115,26,67,159]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
+        "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
+        "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
+      ],
+      reflectFrames: [],
     };
 
-    const colorList = [
-      [0, 0, 0, 76],
-      [15, 95, 35, 159],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [55, 30, 200, 242],
-      [55, 30, 200, 242],
-      [55, 30, 200, 242],
-      [55, 30, 200, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [15, 95, 35, 159],
-      [0, 0, 0, 76],
-      [204, 204, 204, 17]
-    ];
-    for (const color of colorList) {
-      const [r, g, b, a] = color;
-      this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-      this.colorBackground.style.opacity = '1';
-      await new Promise((resolve) => setTimeout(resolve, 120));
-    }
-    this.colorBackground.style.opacity = '0';
+    let invalid = false;
+    do {
+      let frameCache: string | SingleFaceLandmarkerResult = "";
+      this.onFrame = (frame) => {
+        frameCache = frame;
+        onFrame(frame);
+      };
+  
+      // 炫彩闪烁前，重置状态
+      result.reflectFrames = [];
+      invalid = false;
+      const colorList = [
+        [0, 0, 0, 76],
+        [15, 95, 35, 159],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [55, 30, 200, 242],
+        [55, 30, 200, 242],
+        [55, 30, 200, 242],
+        [55, 30, 200, 242],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [31, 191, 70, 242],
+        [15, 95, 35, 159],
+        [0, 0, 0, 76],
+        [204, 204, 204, 17]
+      ];
+      for (const color of colorList) {
+        const [r, g, b, a] = color;
+        this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+        this.colorBackground.style.opacity = '1';
+
+        // 等待一小段时间确保视频帧更新
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        // 获取一帧脸部图片（通过MediaPipe计算出的脸部信息，在全量视频帧的基础上，裁剪出脸部区域）
+        if (typeof frameCache === 'string') {
+          invalid = true;
+        } else if (!invalid) {
+          const { base64, mouthCenter } = this.capturePhoto({ face: frameCache, maxWidth: 180 });
+          // 将脸部图片转换为base64并添加到结果中
+          result.reflectFrames.push({
+            frame: base64.split(',')[1],
+            time: Date.now() * 1000,
+            x: mouthCenter!.x,
+            y: mouthCenter!.y,
+          });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      this.colorBackground.style.opacity = '0';
+    } while (invalid);
+
+    return result;
   }
 
   private predictWebcam() {
@@ -309,7 +366,13 @@ class FaceVerification {
     }
   }
 
-  private capturePhoto(): string {
+  private capturePhoto(extra?: {
+    face: SingleFaceLandmarkerResult, 
+    maxWidth: number,
+  }): {
+    base64: string;
+    mouthCenter?: { x: number, y: number }; // 嘴部中心点坐标，以裁剪、缩放后的照片为坐标系！！！
+  } {
     // 创建临时canvas来捕获照片
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d')!;
@@ -319,9 +382,123 @@ class FaceVerification {
     
     // 绘制视频帧到canvas
     tempCtx.drawImage(this.video, 0, 0);
+    if (!extra) { // 如果未提供人脸信息，则返回全量视频帧
+      return {
+        base64: tempCanvas.toDataURL('image/jpeg', 0.8),
+      };
+    }
+
+    // 获取脸部轮廓点
+    const faceLandmarks = extra.face.faceLandmarks;
+    const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
     
-    // 转换为base64
-    return tempCanvas.toDataURL('image/jpeg', 0.8);
+    // 计算脸部边界框
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    
+    for (const conn of faceOval) {
+      const point = faceLandmarks[conn.start];
+      const x = point.x * this.video.videoWidth;
+      const y = point.y * this.video.videoHeight;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    
+    // 添加一些边距，确保完整捕获脸部
+    const padding = Math.min(maxX - minX, maxY - minY) * 0.1;
+    minX = Math.max(0, minX - padding);
+    maxX = Math.min(this.video.videoWidth, maxX + padding);
+    minY = Math.max(0, minY - padding);
+    maxY = Math.min(this.video.videoHeight, maxY + padding);
+    
+    // 裁剪脸部区域
+    const faceWidth = maxX - minX;
+    const faceHeight = maxY - minY;
+    
+    // 确保裁剪区域有效
+    if (faceWidth <= 0 || faceHeight <= 0) {
+      throw new Error('脸部裁剪区域无效');
+    }
+    
+    // 创建新的canvas来存储裁剪后的脸部图片
+    const faceCanvas = document.createElement('canvas');
+    const faceCtx = faceCanvas.getContext('2d')!;
+    
+    faceCanvas.width = faceWidth;
+    faceCanvas.height = faceHeight;
+    
+    // 从原canvas裁剪脸部区域
+    faceCtx.drawImage(
+      tempCanvas,
+      minX, minY, faceWidth, faceHeight,  // 源图像裁剪区域
+      0, 0, faceWidth, faceHeight          // 目标canvas绘制区域
+    );
+
+    // 计算缩放比例
+    const scale = Math.min(extra.maxWidth / faceWidth, extra.maxWidth / faceHeight);
+    const scaledWidth = Math.round(faceWidth * scale);
+    const scaledHeight = Math.round(faceHeight * scale);
+
+    // 如果需要进行缩放
+    if (scale >= 1) {
+      // 不需要缩放，直接返回裁剪后的图片
+      const originalMouthCenter = this.faceDetector!.detectMouthCenter(extra.face, {
+        width: this.video.videoWidth,
+        height: this.video.videoHeight,
+      });
+      
+      // 坐标转换：原始视频坐标 -> 裁剪后坐标
+      const croppedMouthCenter = {
+        x: Math.round(originalMouthCenter.x - minX),
+        y: Math.round(originalMouthCenter.y - minY),
+      };
+      
+      return {
+        base64: faceCanvas.toDataURL('image/jpeg', 0.8),
+        mouthCenter: croppedMouthCenter,
+      };
+    }
+    
+    const scaledCanvas = document.createElement('canvas');
+    const scaledCtx = scaledCanvas.getContext('2d')!;
+    
+    scaledCanvas.width = scaledWidth;
+    scaledCanvas.height = scaledHeight;
+    
+    // 使用高质量缩放
+    scaledCtx.imageSmoothingEnabled = true;
+    scaledCtx.imageSmoothingQuality = 'high';
+    
+    // 绘制缩放后的图像
+    scaledCtx.drawImage(
+      faceCanvas,
+      0, 0, faceWidth, faceHeight,      // 源图像区域
+      0, 0, scaledWidth, scaledHeight   // 目标区域
+    );
+    
+    // 获取原始视频中的嘴部中心点坐标
+    const originalMouthCenter = this.faceDetector!.detectMouthCenter(extra.face, {
+      width: this.video.videoWidth,
+      height: this.video.videoHeight,
+    });
+    
+    // 坐标转换：原始视频坐标 -> 裁剪后坐标 -> 缩放后坐标
+    const croppedMouthCenter = {
+      x: originalMouthCenter.x - minX,
+      y: originalMouthCenter.y - minY,
+    };
+    
+    const scaledMouthCenter = {
+      x: Math.round(croppedMouthCenter.x * scale),
+      y: Math.round(croppedMouthCenter.y * scale),
+    };
+    
+    return {
+      base64: scaledCanvas.toDataURL('image/jpeg', 0.8),
+      mouthCenter: scaledMouthCenter,
+    };
   }
 
   private stopCamera(): void {    
@@ -366,6 +543,41 @@ class FaceVerification {
     
     // 清空帧缓冲区
     this.videoBuffer.clear();
+  }
+
+  // 复制结果到剪切板
+  private async copyToClipboard(data: ReflectDataSuccess): Promise<void> {
+    try {
+      // 将数据转换为JSON字符串
+      const jsonString = JSON.stringify(data, null, 2);
+      
+      // 使用现代Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(jsonString);
+        console.log('结果已复制到剪切板');
+      } else {
+        // 降级方案：使用传统的document.execCommand
+        const textArea = document.createElement('textarea');
+        textArea.value = jsonString;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          console.log('结果已复制到剪切板');
+        } else {
+          console.error('复制到剪切板失败');
+        }
+      }
+    } catch (error) {
+      console.error('复制到剪切板时发生错误:', error);
+    }
   }
 
   // 下载文件

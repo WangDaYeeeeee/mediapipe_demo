@@ -282,4 +282,19 @@ export class FaceDetector {
     const mouthOpenThreshold = 0.6;
     return mouthOpenScroe > mouthOpenThreshold;
   }
+
+  public detectMouthCenter(singleResult: SingleFaceLandmarkerResult, videoSize: Size): { x: number, y: number } {
+    const mouthOval = FaceLandmarker.FACE_LANDMARKS_LIPS;
+    const sum: {x: number, y: number} = mouthOval.reduce((prev, current) => {
+      const point = singleResult.faceLandmarks[current.start];
+      return { 
+        x: prev.x + point.x * videoSize.width, 
+        y: prev.y + point.y * videoSize.height,
+      }
+    }, { x: 0, y: 0 });
+    return {
+      x: sum.x / mouthOval.length,
+      y: sum.y / mouthOval.length,
+    };
+  }
 }
