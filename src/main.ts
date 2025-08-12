@@ -119,7 +119,7 @@ class FaceVerification {
     this.updateUI('preparing', { tipMessage: '正在加载模型' });
     if (!this.faceDetector) {
       try {
-        this.faceDetector = await this.createFaceDetector();;
+        this.faceDetector = await FaceDetector.create();
       } catch (error) {
         console.error('初始化模型失败:', error);
         this.updateUI('error', { tipMessage: '人脸核验初始化失败，请刷新页面重试' });
@@ -198,24 +198,13 @@ class FaceVerification {
     this.showResult(photo);
   }
 
-  private async createFaceDetector(): Promise<FaceDetector> {
-    return await FaceDetector.create({
-      cpuContext: this.ctx,
-      configs: {
-        drawFaceLandmarks: true,
-        drawPositionGuide: true
-      },
-      canvasSizer: () => ({ width: this.canvas.width, height: this.canvas.height })
-    });
-  }
-
   private async startCamera(): Promise<void> {
     this.video.srcObject = await navigator.mediaDevices.getUserMedia({ 
       video: {
-        width: { ideal: 1280, min: 640 },
-        height: { ideal: 720, min: 480 },
+        width: { ideal: 720, min: 240, max: 1280 },
+        height: { ideal: 960, min: 320, max: 1920 },
         facingMode: 'user',
-        aspectRatio: { exact: 1 }
+        frameRate: { ideal: 30 },
       },
     });
     return new Promise((resolve, _) => {

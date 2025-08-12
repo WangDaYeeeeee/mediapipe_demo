@@ -1,4 +1,4 @@
-import { DrawingUtils, FaceLandmarker, FilesetResolver, Matrix, NormalizedLandmark } from "@mediapipe/tasks-vision";
+import { FaceLandmarker, FilesetResolver, Matrix, NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 export interface SingleFaceLandmarkerResult {
   /** Detected face landmarks in normalized image coordinates. */
@@ -9,29 +9,16 @@ export interface SingleFaceLandmarkerResult {
   readonly facialTransformationMatrixes: Matrix;
 }
 
-interface CanvaseSize {
+interface Size {
   readonly width: number;
   readonly height: number;
-}
-
-interface DetectingConfigs {
-  readonly drawFaceLandmarks?: boolean | undefined;
-  readonly drawPositionGuide?: boolean | undefined;
 }
 
 export class FaceDetector {
 
   private readonly faceLandmarker: FaceLandmarker;
-  private readonly drawingUtils: DrawingUtils;
-  private readonly ctx: CanvasRenderingContext2D;
-  private readonly configs: DetectingConfigs | undefined;
-  private readonly canvasSizer: () => CanvaseSize;
 
-  public static async create(params: {
-    cpuContext: CanvasRenderingContext2D,
-    configs?: DetectingConfigs | undefined,
-    canvasSizer: () => CanvaseSize
-  }): Promise<FaceDetector> {
+  public static async create(): Promise<FaceDetector> {
     const filesetResolver = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
     );
@@ -45,34 +32,22 @@ export class FaceDetector {
       runningMode: "VIDEO",
       numFaces: 1
     });
-    const drawingUtils = new DrawingUtils(params.cpuContext);
-    return new FaceDetector(faceLandmarker, drawingUtils, params.cpuContext, params.configs, params.canvasSizer);
+    return new FaceDetector(faceLandmarker);
   }
 
-  constructor(
-    faceLandmarker: FaceLandmarker,
-    drawingUtils: DrawingUtils,
-    ctx: CanvasRenderingContext2D,
-    configs: DetectingConfigs | undefined,
-    canvasSizer: () => CanvaseSize
-  ) {
+  constructor(faceLandmarker: FaceLandmarker) {
     this.faceLandmarker = faceLandmarker;
-    this.drawingUtils = drawingUtils;
-    this.ctx = ctx;
-    this.configs = configs;
-    this.canvasSizer = canvasSizer;
   }
 
-  public detect(videoFrame: TexImageSource): SingleFaceLandmarkerResult | string {
+  public detect(video: HTMLVideoElement): SingleFaceLandmarkerResult | string {
     const faceLandmarker = this.faceLandmarker;
     if (!faceLandmarker) {
       return '人脸核验初始化失败';
     }
 
     const startTimeMs = performance.now();
-    const canvasSize = this.canvasSizer();
-    const results = faceLandmarker.detectForVideo(videoFrame, startTimeMs);
-    this.ctx?.clearRect(0, 0, canvasSize.width, canvasSize.height);
+    const size = { width: video.videoWidth, height: video.videoHeight };
+    const results = faceLandmarker.detectForVideo(video, startTimeMs);
     if (results.faceLandmarks.length === 0) {
       return '未检测到人脸';
     }
@@ -87,81 +62,81 @@ export class FaceDetector {
       faceBlendshapes: blendshapesMap,
       facialTransformationMatrixes: results.facialTransformationMatrixes[0]
     };
-    this.drawFaceLandmarks(result);
+    // this.drawFaceLandmarks(result);
 
-    const validation = this.validateFace(result, canvasSize);
+    const validation = this.validateFace(result, size);
     return !!validation ? validation : result;
   }
 
-  private drawFaceLandmarks(singleResult: SingleFaceLandmarkerResult): void {
-    if (this.configs?.drawFaceLandmarks !== true) {
-      return;
-    }
-    try {
-      // 绘制脸部轮廓
-      this.drawingUtils?.drawConnectors(
-        singleResult.faceLandmarks,
-        FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
-        { color: "#00ff00", lineWidth: 2 }
-      );
+  // private drawFaceLandmarks(singleResult: SingleFaceLandmarkerResult): void {
+  //   if (this.configs?.drawFaceLandmarks !== true) {
+  //     return;
+  //   }
+  //   try {
+  //     // 绘制脸部轮廓
+  //     this.drawingUtils?.drawConnectors(
+  //       singleResult.faceLandmarks,
+  //       FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
+  //       { color: "#00ff00", lineWidth: 2 }
+  //     );
       
-      // 绘制眼睛
-      this.drawingUtils?.drawConnectors(
-        singleResult.faceLandmarks,
-        FaceLandmarker.FACE_LANDMARKS_LEFT_EYE,
-        { color: "#30ff30", lineWidth: 2 }
-      );
+  //     // 绘制眼睛
+  //     this.drawingUtils?.drawConnectors(
+  //       singleResult.faceLandmarks,
+  //       FaceLandmarker.FACE_LANDMARKS_LEFT_EYE,
+  //       { color: "#30ff30", lineWidth: 2 }
+  //     );
       
-      this.drawingUtils?.drawConnectors(
-        singleResult.faceLandmarks,
-        FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE,
-        { color: "#30ff30", lineWidth: 2 }
-      );
+  //     this.drawingUtils?.drawConnectors(
+  //       singleResult.faceLandmarks,
+  //       FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE,
+  //       { color: "#30ff30", lineWidth: 2 }
+  //     );
       
-      // 绘制嘴唇
-      this.drawingUtils?.drawConnectors(
-        singleResult.faceLandmarks,
-        FaceLandmarker.FACE_LANDMARKS_LIPS,
-        { color: "#ff3030", lineWidth: 2 }
-      );
-    } catch (error) {
-      console.error('绘制人脸特征点时发生错误:', error);
-      // 绘制错误不影响主要功能，继续执行
-    }
-  }
+  //     // 绘制嘴唇
+  //     this.drawingUtils?.drawConnectors(
+  //       singleResult.faceLandmarks,
+  //       FaceLandmarker.FACE_LANDMARKS_LIPS,
+  //       { color: "#ff3030", lineWidth: 2 }
+  //     );
+  //   } catch (error) {
+  //     console.error('绘制人脸特征点时发生错误:', error);
+  //     // 绘制错误不影响主要功能，继续执行
+  //   }
+  // }
 
-  private drawPositionGuide(canvasSize: CanvaseSize, extra: {
-    faceCenter: { x: number, y: number },
-    faceCentered: boolean
-  }): void {
-    const ctx = this.ctx;
-    if (!ctx) {
-      return;
-    }
+  // private drawPositionGuide(size: Size, extra: {
+  //   faceCenter: { x: number, y: number },
+  //   faceCentered: boolean
+  // }): void {
+  //   const ctx = this.ctx;
+  //   if (!ctx) {
+  //     return;
+  //   }
 
-    try {
-      const centerX = canvasSize.width / 2;
-      const centerY = canvasSize.height / 2;
+  //   try {
+  //     const centerX = size.width / 2;
+  //     const centerY = size.height / 2;
       
-      // 绘制人脸中心点
-      ctx.fillStyle = extra.faceCentered ? '#00ff00' : '#ff0000';
-      ctx.beginPath();
-      ctx.arc(extra.faceCenter.x, extra.faceCenter.y, 5, 0, 2 * Math.PI);
-      ctx.fill();
+  //     // 绘制人脸中心点
+  //     ctx.fillStyle = extra.faceCentered ? '#00ff00' : '#ff0000';
+  //     ctx.beginPath();
+  //     ctx.arc(extra.faceCenter.x, extra.faceCenter.y, 5, 0, 2 * Math.PI);
+  //     ctx.fill();
       
-      // 绘制从人脸中心到目标中心的连线
-      ctx.strokeStyle = extra.faceCentered ? '#00ff00' : '#ff0000';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(extra.faceCenter.x, extra.faceCenter.y);
-      ctx.lineTo(centerX, centerY);
-      ctx.stroke();
-    } catch (error) {
-      console.error('绘制位置指导时发生错误:', error);
-    }
-  }
+  //     // 绘制从人脸中心到目标中心的连线
+  //     ctx.strokeStyle = extra.faceCentered ? '#00ff00' : '#ff0000';
+  //     ctx.lineWidth = 2;
+  //     ctx.beginPath();
+  //     ctx.moveTo(extra.faceCenter.x, extra.faceCenter.y);
+  //     ctx.lineTo(centerX, centerY);
+  //     ctx.stroke();
+  //   } catch (error) {
+  //     console.error('绘制位置指导时发生错误:', error);
+  //   }
+  // }
 
-  private validateFace(singleResult: SingleFaceLandmarkerResult, canvasSize: CanvaseSize): string | undefined {
+  private validateFace(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
     let validation: string | undefined;
 
     // 检查人脸朝向
@@ -171,13 +146,13 @@ export class FaceDetector {
     }
 
     // 检查人脸距离
-    validation = this.validateFaceDistance(singleResult, canvasSize);
+    validation = this.validateFaceDistance(singleResult, size);
     if (!!validation) {
       return validation;
     }
     
     // 计算人脸中心位置
-    validation = this.validateFaceCentered(singleResult, canvasSize);
+    validation = this.validateFaceCentered(singleResult, size);
     if (!!validation) {
       return validation;
     }
@@ -185,14 +160,14 @@ export class FaceDetector {
     return undefined;
   }
 
-  private validateFaceCentered(singleResult: SingleFaceLandmarkerResult, canvasSize: CanvaseSize): string | undefined {
+  private validateFaceCentered(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
     // 使用脸部轮廓点计算人脸中心
     const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
     const sum: {x: number, y: number} = faceOval.reduce((prev, current) => {
       const point = singleResult.faceLandmarks[current.start];
       return { 
-        x: prev.x + point.x * canvasSize.width, 
-        y: prev.y + point.y * canvasSize.height,
+        x: prev.x + point.x * size.width, 
+        y: prev.y + point.y * size.height,
       }
     }, { x: 0, y: 0 });
     const faceCenter = {
@@ -200,24 +175,24 @@ export class FaceDetector {
       y: sum.y / faceOval.length,
     };
 
-    const centerX = canvasSize.width / 2;
-    const centerY = canvasSize.height / 2;
+    const centerX = size.width / 2;
+    const centerY = size.height / 2;
     const distance = Math.sqrt(
       Math.pow(faceCenter.x - centerX, 2) + Math.pow(faceCenter.y - centerY, 2)
     );
     
     // 根据画布大小动态调整阈值，人脸中心距离画布中心不超过画布较小边的10%
-    const threshold = Math.min(canvasSize.width, canvasSize.height) * 0.1;
+    const threshold = Math.min(size.width, size.height) * 0.1;
     const isCentered = distance < threshold;
 
-    this.drawPositionGuide(canvasSize, {
-      faceCenter: faceCenter,
-      faceCentered: isCentered,
-    });
+    // this.drawPositionGuide(size, {
+    //   faceCenter: faceCenter,
+    //   faceCentered: isCentered,
+    // });
     return isCentered ? undefined : '请保持人脸在屏幕中央';
   }
 
-  private validateFaceDistance(singleResult: SingleFaceLandmarkerResult, canvasSize: CanvaseSize): string | undefined {
+  private validateFaceDistance(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
     // 使用脸部轮廓的边界框计算人脸大小
     const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
     let minX = Infinity, maxX = -Infinity;
@@ -225,8 +200,8 @@ export class FaceDetector {
     
     for (const conn of faceOval) {
       const point = singleResult.faceLandmarks[conn.start];
-      const x = point.x * canvasSize.width;
-      const y = point.y * canvasSize.height;
+      const x = point.x * size.width;
+      const y = point.y * size.height;
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
@@ -239,8 +214,8 @@ export class FaceDetector {
 
     // 检查人脸大小是否在合适范围内
     // 人脸大小应该在画布较小边的40%-60%之间
-    const minSize = Math.min(canvasSize.width, canvasSize.height) * 0.4;
-    const maxSize = Math.min(canvasSize.width, canvasSize.height) * 0.6;
+    const minSize = Math.min(size.width, size.height) * 0.4;
+    const maxSize = Math.min(size.width, size.height) * 0.6;
 
     if (maxLength < minSize) {
       return '请靠近摄像头';
