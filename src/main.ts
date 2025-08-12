@@ -1,4 +1,7 @@
 import { FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { VideoFrameBuffer } from "./video_buffer";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,6 +26,11 @@ class FaceVerification {
   private resultPhoto!: HTMLDivElement;
   private progressIndicator!: HTMLDivElement;
   private colorBackground!: HTMLDivElement;
+
+  private faceDetector: FaceDetector | undefined;
+  private videoBuffer = VideoFrameBuffer.create();
+  private onFrame: OnFrame | undefined;
+  private cameraOn: boolean = false;
 
   private updateUI(step: VerificationStep, state: UIState): void {
     if (!!state.tipMessage) {
@@ -74,10 +82,6 @@ class FaceVerification {
       }
     }
   }
-
-  private faceDetector: FaceDetector | undefined;
-  private onFrame: OnFrame | undefined;
-  private cameraOn: boolean = false;
 
   constructor() {
     this.initializeElements();
@@ -222,12 +226,16 @@ class FaceVerification {
   private async detectBlink(onFrame: OnFrame): Promise<void> {
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
-        try {
+        try {          
           if (typeof frame === 'string') {
             // do nothing.
           } else {
             const blinkDetected = this.faceDetector!.detectBlink(frame);
             if (blinkDetected) {
+              // 检测到眨眼，生成视频
+              this.videoBuffer.getFrames().then((blob) => {
+                if (blob) this.downloadFile(blob, 'action_1.webm');
+              });
               resolve();
             }
           }
@@ -241,12 +249,16 @@ class FaceVerification {
   private async detectMouthOpen(onFrame: OnFrame): Promise<void> {
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
-        try {
+        try {          
           if (typeof frame === 'string') {
             // do nothing.
           } else {
             const mouthOpenDetected = this.faceDetector!.detectMouthOpen(frame);
             if (mouthOpenDetected) {
+              // 检测到张嘴，生成视频
+              this.videoBuffer.getFrames().then((blob) => {
+                if (blob) this.downloadFile(blob, 'action_2.webm');
+              });
               resolve();
             }
           }
@@ -297,6 +309,7 @@ class FaceVerification {
     }
     try {
       const result = this.faceDetector!.detect(this.video);
+      this.videoBuffer.addFrame(this.video);
       this.onFrame?.(result);
     } catch (error) {
       console.error('预测过程中发生错误:', error);
@@ -359,5 +372,20 @@ class FaceVerification {
     
     // 显示结果区域
     this.resultArea.style.display = 'none';
+    
+    // 清空帧缓冲区
+    this.videoBuffer.clear();
+  }
+
+  // 下载文件
+  private downloadFile(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }
