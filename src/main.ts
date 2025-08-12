@@ -176,20 +176,13 @@ class FaceVerification {
     });
 
     // 活体检测（炫彩）
-    this.colorBackground.style.opacity = '1';
-    this.colorBackground.style.animation = 'colorShift 2s ease-in-out';
-    try {
-      await this.dazzle((frame) => {
-        if (typeof frame === 'string') {
-          this.updateUI('dazzling', { tipMessage: frame });
-        } else {
-          this.updateUI('dazzling', { tipMessage: '请保持不动' });
-        }
-      });
-    } finally {
-      this.colorBackground.style.opacity = '0';
-      this.colorBackground.style.animation = 'none';
-    }
+    await this.dazzle((frame) => {
+      if (typeof frame === 'string') {
+        this.updateUI('dazzling', { tipMessage: frame });
+      } else {
+        this.updateUI('dazzling', { tipMessage: '请保持不动' });
+      }
+    });
 
     this.updateUI('done', { tipMessage: '核验完成，请稍等' });
     // 捕获照片
@@ -265,12 +258,37 @@ class FaceVerification {
   }
 
   private async dazzle(onFrame: OnFrame): Promise<void> {
-    return new Promise((resolve, _) => {
-      setTimeout(() => resolve(), 2000);
-      this.onFrame = (frame) => {
-        onFrame(frame);
-      };
-    });
+    this.onFrame = (frame) => {
+      onFrame(frame);
+    };
+
+    const colorList = [
+      [0, 0, 0, 76],
+      [15, 95, 35, 159],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [55, 30, 200, 242],
+      [55, 30, 200, 242],
+      [55, 30, 200, 242],
+      [55, 30, 200, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [15, 95, 35, 159],
+      [0, 0, 0, 76],
+      [204, 204, 204, 17]
+    ];
+    for (const color of colorList) {
+      const [r, g, b, a] = color;
+      this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+      this.colorBackground.style.opacity = '1';
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    this.colorBackground.style.opacity = '0';
   }
 
   private predictWebcam() {
