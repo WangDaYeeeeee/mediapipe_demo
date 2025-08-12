@@ -1,6 +1,4 @@
 import { FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { VideoFrameBuffer } from "./video_buffer";
 
 // 页面加载完成后初始化应用
@@ -234,7 +232,7 @@ class FaceVerification {
             if (blinkDetected) {
               // 检测到眨眼，生成视频
               this.videoBuffer.getFrames().then((blob) => {
-                if (blob) this.downloadFile(blob, 'action_1.webm');
+                if (blob) this.downloadFile(blob, 'action_1.mp4');
               });
               resolve();
             }
@@ -257,7 +255,7 @@ class FaceVerification {
             if (mouthOpenDetected) {
               // 检测到张嘴，生成视频
               this.videoBuffer.getFrames().then((blob) => {
-                if (blob) this.downloadFile(blob, 'action_2.webm');
+                if (blob) this.downloadFile(blob, 'action_2.mp4');
               });
               resolve();
             }

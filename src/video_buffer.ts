@@ -112,7 +112,50 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
   }
 
   private async webmToMp4(webmBlob: Blob): Promise<Blob> {
-    return webmBlob;
+    try {
+      // 创建 FFmpeg 实例
+      const ffmpeg = new FFmpeg();
+      
+      // 加载 FFmpeg
+      await ffmpeg.load();
+      
+      // 将 WebM blob 转换为 ArrayBuffer
+      const webmArrayBuffer = await webmBlob.arrayBuffer();
+      
+      // 写入 WebM 文件到 FFmpeg
+      await ffmpeg.writeFile('input.webm', new Uint8Array(webmArrayBuffer));
+      
+      // 执行转换命令：将 WebM 转换为 MP4
+      // 使用更优化的参数设置
+      await ffmpeg.exec([
+        '-i', 'input.webm',
+        '-c:v', 'libx264',           // 使用 H.264 编码器
+        '-preset', 'ultrafast',       // 最快的编码预设
+        '-crf', '28',                // 稍低的质量以减小文件大小
+        '-pix_fmt', 'yuv420p',       // 确保兼容性
+        '-movflags', '+faststart',   // 优化 MP4 文件结构
+        '-y',                        // 覆盖输出文件
+        'output.mp4'
+      ]);
+      
+      // 读取转换后的 MP4 文件
+      const mp4Data = await ffmpeg.readFile('output.mp4');
+      
+      // 清理临时文件
+      try {
+        await ffmpeg.deleteFile('input.webm');
+        await ffmpeg.deleteFile('output.mp4');
+      } catch (cleanupError) {
+        console.warn('清理临时文件失败:', cleanupError);
+      }
+      
+      // 返回 MP4 blob
+      return new Blob([mp4Data], { type: 'video/mp4' });
+    } catch (error) {
+      console.error('WebM 转 MP4 转换失败:', error);
+      // 如果转换失败，返回原始 WebM blob
+      return webmBlob;
+    }
   }
 
   clear(): void {
