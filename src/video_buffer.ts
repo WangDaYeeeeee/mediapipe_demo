@@ -1,11 +1,10 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
 
 // 视频帧缓冲区接口
 export interface VideoFrameBuffer {
   readonly maxFrames: number;
   addFrame(video: HTMLVideoElement): void;
-  getFrames(): Promise<Blob|undefined>;
+  getFrames(): Promise<Blob>;
   clear(): void;  
 }
 
@@ -45,11 +44,10 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
     }
   }
 
-  async getFrames(): Promise<Blob|undefined> {
+  async getFrames(): Promise<Blob> {
     const frames = [...this.frames]; // 返回副本
-    if (frames.length === 0) {
-      console.warn('缓冲区中没有帧数据');
-      return undefined;
+    if (frames.length < this.maxFrames) {
+      throw new Error('缓冲区中没有足够的帧数据');
     }
     return new Promise((resolve, reject) => {
       try {
@@ -86,9 +84,13 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
         };
         
         mediaRecorder.onstop = async () => {
-          const webmBlob = new Blob(chunks, { type: 'video/webm' });
-          const mp4Blob = await this.webmToMp4(webmBlob);
-          resolve(mp4Blob);
+          try {
+            const webmBlob = new Blob(chunks, { type: 'video/webm' });
+            const mp4Blob = await this.webmToMp4(webmBlob);
+            resolve(mp4Blob);
+          } catch (error) {
+            reject(error);
+          }
         };
         
         (async () => {
@@ -103,7 +105,7 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
           
           // 停止录制
           mediaRecorder.stop();
-        })();
+        })().catch(reject);
       } catch (error) {
         console.error('生成视频文件时发生错误:', error);
         reject(error);

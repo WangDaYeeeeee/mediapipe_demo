@@ -160,22 +160,24 @@ class FaceVerification {
     this.predictWebcam();
 
     // 眨眼检测
-    await this.detectBlink((frame) => {
+    const blinkBlob = await this.detectBlink((frame) => {
       if (typeof frame === 'string') {
         this.updateUI('detecting_blink', { tipMessage: frame });
       } else {
         this.updateUI('detecting_blink', { tipMessage: '请眨眼' });
       }
     });
+    this.downloadFile(blinkBlob, 'action_1.mp4');
 
     // 张嘴检测
-    await this.detectMouthOpen((frame) => {
+    const mouthOpenBlob = await this.detectMouthOpen((frame) => {
       if (typeof frame === 'string') {
         this.updateUI('detecting_mouth_open', { tipMessage: frame });
       } else {
         this.updateUI('detecting_mouth_open', { tipMessage: '请张大嘴巴' });
       }
     });
+    this.downloadFile(mouthOpenBlob, 'action_2.mp4');
 
     // 活体检测（炫彩）
     await this.dazzle((frame) => {
@@ -221,20 +223,19 @@ class FaceVerification {
     });
   }
 
-  private async detectBlink(onFrame: OnFrame): Promise<void> {
+  private async detectBlink(onFrame: OnFrame): Promise<Blob> {
+    let blinkDetected = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
         try {          
           if (typeof frame === 'string') {
             // do nothing.
-          } else {
-            const blinkDetected = this.faceDetector!.detectBlink(frame);
+          } else if (!blinkDetected) {
+            blinkDetected = this.faceDetector!.detectBlink(frame);
             if (blinkDetected) {
               // 检测到眨眼，生成视频
-              this.videoBuffer.getFrames().then((blob) => {
-                if (blob) this.downloadFile(blob, 'action_1.mp4');
-              });
-              resolve();
+              const promise = this.videoBuffer.getFrames();
+              resolve(promise);
             }
           }
         } finally {
@@ -244,20 +245,19 @@ class FaceVerification {
     });
   }
 
-  private async detectMouthOpen(onFrame: OnFrame): Promise<void> {
+  private async detectMouthOpen(onFrame: OnFrame): Promise<Blob> {
+    let mouthOpenDetected = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
         try {          
           if (typeof frame === 'string') {
             // do nothing.
-          } else {
-            const mouthOpenDetected = this.faceDetector!.detectMouthOpen(frame);
+          } else if (!mouthOpenDetected) {
+            mouthOpenDetected = this.faceDetector!.detectMouthOpen(frame);
             if (mouthOpenDetected) {
               // 检测到张嘴，生成视频
-              this.videoBuffer.getFrames().then((blob) => {
-                if (blob) this.downloadFile(blob, 'action_2.mp4');
-              });
-              resolve();
+              const promise = this.videoBuffer.getFrames();
+              resolve(promise);
             }
           }
         } finally {
