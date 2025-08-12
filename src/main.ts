@@ -160,24 +160,28 @@ class FaceVerification {
     this.predictWebcam();
 
     // 眨眼检测
-    const blinkBlob = await this.detectBlink((frame) => {
+    const blinkBlob = await this.detectBlink((frame, done) => {
       if (typeof frame === 'string') {
         this.updateUI('detecting_blink', { tipMessage: frame });
-      } else {
+      } else if (!done) {
         this.updateUI('detecting_blink', { tipMessage: '请眨眼' });
+      } else {
+        this.updateUI('detecting_blink', { tipMessage: '眨眼 ✅' });
       }
     });
-    this.downloadFile(blinkBlob, 'action_1.mp4');
+    // this.downloadFile(blinkBlob, 'action_1.mp4');
 
     // 张嘴检测
-    const mouthOpenBlob = await this.detectMouthOpen((frame) => {
+    const mouthOpenBlob = await this.detectMouthOpen((frame, done) => {
       if (typeof frame === 'string') {
         this.updateUI('detecting_mouth_open', { tipMessage: frame });
-      } else {
+      } else if (!done) {
         this.updateUI('detecting_mouth_open', { tipMessage: '请张大嘴巴' });
+      } else {
+        this.updateUI('detecting_mouth_open', { tipMessage: '张大嘴巴 ✅' });
       }
     });
-    this.downloadFile(mouthOpenBlob, 'action_2.mp4');
+    // this.downloadFile(mouthOpenBlob, 'action_2.mp4');
 
     // 活体检测（炫彩）
     await this.dazzle((frame) => {
@@ -212,7 +216,7 @@ class FaceVerification {
     });
   }
 
-  private async detectBlink(onFrame: OnFrame): Promise<Blob> {
+  private async detectBlink(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<Blob> {
     let blinkDetected = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
@@ -228,13 +232,13 @@ class FaceVerification {
             }
           }
         } finally {
-          onFrame(frame);
+          onFrame(frame, blinkDetected);
         }
       };
     });
   }
 
-  private async detectMouthOpen(onFrame: OnFrame): Promise<Blob> {
+  private async detectMouthOpen(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<Blob> {
     let mouthOpenDetected = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
@@ -250,7 +254,7 @@ class FaceVerification {
             }
           }
         } finally {
-          onFrame(frame);
+          onFrame(frame, mouthOpenDetected);
         }
       };
     });
