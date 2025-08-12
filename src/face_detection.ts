@@ -1,6 +1,6 @@
 import { DrawingUtils, FaceLandmarker, FilesetResolver, Matrix, NormalizedLandmark } from "@mediapipe/tasks-vision";
 
-interface SingleFaceLandmarkerResult {
+export interface SingleFaceLandmarkerResult {
   /** Detected face landmarks in normalized image coordinates. */
   readonly faceLandmarks: NormalizedLandmark[];
   /** Optional face blendshapes results. */
