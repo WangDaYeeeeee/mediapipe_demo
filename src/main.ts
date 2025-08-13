@@ -22,12 +22,14 @@ interface ReflectDataSuccess {
     "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
     "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
   ];
-  reflectFrames: {
-    readonly frame: string;
-    readonly time: number;
-    readonly x: number;
-    readonly y: number;
-  }[];
+  reflectFrames: ReflectFrame[];
+}
+
+interface ReflectFrame {
+  readonly frame: string;
+  readonly time: number;
+  readonly x: number;
+  readonly y: number;
 }
 
 class FaceVerification {
@@ -120,6 +122,14 @@ class FaceVerification {
       this.resetUI();
       this.startDetect();
     });
+
+    // 添加复制结果按钮事件监听
+    const copyResultBtn = document.getElementById('copyResultBtn') as HTMLButtonElement;
+    if (copyResultBtn) {
+      copyResultBtn.addEventListener('click', () => {
+        this.manualCopyResult();
+      });
+    }
   }
 
   private resizeCanvas(): void {
@@ -208,10 +218,17 @@ class FaceVerification {
       }
     });
     console.log('reflectDataSuccess', reflectDataSuccess);
-    // 复制结果到剪切板
+    
+    // 尝试复制到剪切板
     await this.copyToClipboard(reflectDataSuccess);
-
-    this.updateUI('done', { tipMessage: '核验完成，结果已复制到剪切板' });
+    
+    // 检查是否成功复制到剪切板
+    const clipboardSuccess = !(window as any).lastVerificationResult;
+    const tipMessage = clipboardSuccess 
+      ? '核验完成，结果已复制到剪切板' 
+      : '核验完成，结果已存储到控制台，请手动复制';
+    
+    this.updateUI('done', { tipMessage });
     // 捕获照片
     const photo = this.capturePhoto().base64;
     // 停止摄像头
@@ -300,55 +317,75 @@ class FaceVerification {
   
       // 炫彩闪烁前，重置状态
       result.reflectFrames = [];
-      invalid = false;
-      const colorList = [
-        [0, 0, 0, 76],
-        [15, 95, 35, 159],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [55, 30, 200, 242],
-        [55, 30, 200, 242],
-        [55, 30, 200, 242],
-        [55, 30, 200, 242],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [31, 191, 70, 242],
-        [15, 95, 35, 159],
-        [0, 0, 0, 76],
-        [204, 204, 204, 17]
-      ];
-      for (const color of colorList) {
-        const [r, g, b, a] = color;
-        this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-        this.colorBackground.style.opacity = '1';
-
-        // 等待一小段时间确保视频帧更新
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        // 获取一帧脸部图片（通过MediaPipe计算出的脸部信息，在全量视频帧的基础上，裁剪出脸部区域）
-        if (typeof frameCache === 'string') {
-          invalid = true;
-        } else if (!invalid) {
-          const { base64, mouthCenter } = this.capturePhoto({ face: frameCache, maxWidth: 180 });
-          // 将脸部图片转换为base64并添加到结果中
-          result.reflectFrames.push({
-            frame: base64.split(',')[1],
-            time: Date.now() * 1000,
-            x: mouthCenter!.x,
-            y: mouthCenter!.y,
-          });
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      this.colorBackground.style.opacity = '0';
+      // 炫彩闪烁 & 捕获脸部图片
+      const [_, framesData] = await Promise.all([
+        this.backgroungColorDazzle(1600),
+        this.captureDazzleFrames(1600, 43, () => frameCache),
+      ]);
+      // 将捕获到的脸部图片添加到结果中
+      result.reflectFrames = framesData.reflectFrames;
+      // 如果捕获到无效的图片，则重试
+      invalid = framesData.invalid;
     } while (invalid);
 
     return result;
+  }
+
+  private async backgroungColorDazzle(ms: number): Promise<void> {
+    const colorList = [
+      [0, 0, 0, 76],
+      [15, 95, 35, 159],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [55, 30, 200, 242],
+      [55, 30, 200, 242],
+      [55, 30, 200, 242],
+      [55, 30, 200, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [31, 191, 70, 242],
+      [15, 95, 35, 159],
+      [0, 0, 0, 76],
+      [204, 204, 204, 17]
+    ];
+    for (const color of colorList) {
+      const [r, g, b, a] = color;
+      this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+      this.colorBackground.style.opacity = '1';
+      await new Promise((resolve) => setTimeout(resolve, ms / colorList.length));
+    }
+    this.colorBackground.style.opacity = '0';
+  }
+
+  private async captureDazzleFrames(ms: number, frames: number, fetchFrame: () => string | SingleFaceLandmarkerResult): Promise<{
+    readonly reflectFrames: ReflectFrame[];
+    readonly invalid: boolean;
+  }> {
+    const reflectFrames: ReflectFrame[] = [];
+    let invalid = false;
+    for (let i = 0; i < frames; i ++) {
+      await new Promise((resolve) => setTimeout(resolve, ms / frames));
+
+      const frame = fetchFrame();
+      // 获取一帧脸部图片（通过MediaPipe计算出的脸部信息，在全量视频帧的基础上，裁剪出脸部区域）
+      if (typeof frame === 'string') {
+        invalid = true;
+      } else if (!invalid) {
+        const { base64, mouthCenter } = this.capturePhoto({ face: frame, maxWidth: 180 });
+        // 将脸部图片转换为base64并添加到结果中
+        reflectFrames.push({
+          frame: base64.split(',')[1],
+          time: Date.now() * 1000,
+          x: mouthCenter!.x,
+          y: mouthCenter!.y,
+        });
+      }
+    }
+    return { reflectFrames, invalid };
   }
 
   private predictWebcam() {
@@ -526,6 +563,13 @@ class FaceVerification {
     
     // 设置照片
     this.resultPhoto.innerHTML = `<img src="${photo}" alt="核验照片">`;
+    
+    // 控制复制按钮的显示
+    const copyResultBtn = document.getElementById('copyResultBtn') as HTMLButtonElement;
+    if (copyResultBtn) {
+      const hasResult = !!(window as any).lastVerificationResult;
+      copyResultBtn.style.display = hasResult ? 'block' : 'none';
+    }
   }
 
   private resetUI(): void {
@@ -543,6 +587,9 @@ class FaceVerification {
     
     // 清空帧缓冲区
     this.videoBuffer.clear();
+    
+    // 清除存储的结果
+    delete (window as any).lastVerificationResult;
   }
 
   // 复制结果到剪切板
@@ -553,31 +600,95 @@ class FaceVerification {
       
       // 使用现代Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(jsonString);
+        try {
+          await navigator.clipboard.writeText(jsonString);
+          console.log('结果已复制到剪切板');
+          return;
+        } catch (clipboardError) {
+          console.warn('Clipboard API 失败，尝试降级方案:', clipboardError);
+          // 如果 Clipboard API 失败，继续使用降级方案
+        }
+      }
+      
+      // 降级方案：使用传统的document.execCommand
+      const textArea = document.createElement('textarea');
+      textArea.value = jsonString;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
         console.log('结果已复制到剪切板');
       } else {
-        // 降级方案：使用传统的document.execCommand
-        const textArea = document.createElement('textarea');
-        textArea.value = jsonString;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        
-        if (successful) {
-          console.log('结果已复制到剪切板');
-        } else {
-          console.error('复制到剪切板失败');
-        }
+        console.error('复制到剪切板失败');
+        // 如果都失败了，将数据存储到全局变量，供用户手动复制
+        (window as any).lastVerificationResult = jsonString;
+        console.log('结果已存储到 window.lastVerificationResult，请手动复制');
       }
     } catch (error) {
       console.error('复制到剪切板时发生错误:', error);
+      // 将数据存储到全局变量，供用户手动复制
+      const jsonString = JSON.stringify(data, null, 2);
+      (window as any).lastVerificationResult = jsonString;
+      console.log('结果已存储到 window.lastVerificationResult，请手动复制');
     }
+  }
+
+  // 手动复制结果（用户点击按钮触发）
+  private async manualCopyResult(): Promise<void> {
+    const lastResult = (window as any).lastVerificationResult;
+    if (!lastResult) {
+      this.showNotification('没有可复制的结果', 'error');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(lastResult);
+      this.showNotification('结果已复制到剪切板', 'success');
+      // 清除存储的结果
+      delete (window as any).lastVerificationResult;
+    } catch (error) {
+      console.error('手动复制失败:', error);
+      this.showNotification('复制失败，请手动复制控制台中的结果', 'error');
+    }
+  }
+
+  // 显示通知
+  private showNotification(message: string, type: 'success' | 'error'): void {
+    // 移除现有通知
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+
+    // 创建新通知
+    const notification = document.createElement('div');
+    notification.className = `notification ${type === 'success' ? 'success' : 'error'}`;
+    notification.textContent = message;
+    notification.style.background = type === 'success' ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.9)';
+    
+    document.body.appendChild(notification);
+    
+    // 显示通知
+    setTimeout(() => {
+      notification.classList.add('show');
+    }, 100);
+    
+    // 自动隐藏通知
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 300);
+    }, 3000);
   }
 
   // 下载文件
