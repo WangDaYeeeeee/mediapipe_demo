@@ -192,7 +192,7 @@ class FaceVerification {
       } else if (!done) {
         this.updateUI('detecting_blink', { tipMessage: '请眨眼' });
       } else {
-        this.updateUI('detecting_blink', { tipMessage: '眨眼 ✅' });
+        this.updateUI('detecting_blink', { tipMessage: '✅ 已捕获眨眼瞬间，请稍等' });
       }
     });
     // this.downloadFile(blinkBlob, 'action_1.mp4');
@@ -204,7 +204,7 @@ class FaceVerification {
       } else if (!done) {
         this.updateUI('detecting_mouth_open', { tipMessage: '请张大嘴巴' });
       } else {
-        this.updateUI('detecting_mouth_open', { tipMessage: '张大嘴巴 ✅' });
+        this.updateUI('detecting_mouth_open', { tipMessage: '✅ 已捕获张嘴瞬间，请稍等' });
       }
     });
     // this.downloadFile(mouthOpenBlob, 'action_2.mp4');
