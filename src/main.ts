@@ -39,7 +39,6 @@ class FaceVerification {
   private restartBtn!: HTMLButtonElement;
   private tipArea!: HTMLDivElement;
   private resultArea!: HTMLDivElement;
-  private resultPhoto!: HTMLDivElement;
   private progressIndicator!: HTMLDivElement;
   private colorBackground!: HTMLDivElement;
 
@@ -111,7 +110,6 @@ class FaceVerification {
     this.restartBtn = document.getElementById('restartBtn') as HTMLButtonElement;
     this.tipArea = document.getElementById('tipArea') as HTMLDivElement;
     this.resultArea = document.getElementById('resultArea') as HTMLDivElement;
-    this.resultPhoto = document.getElementById('resultPhoto') as HTMLDivElement;
     this.progressIndicator = document.getElementById('progressIndicator') as HTMLDivElement;
     this.colorBackground = document.getElementById('colorBackground') as HTMLDivElement;
     
@@ -229,13 +227,11 @@ class FaceVerification {
       : '核验完成，结果已存储到控制台，请手动复制';
     
     this.updateUI('done', { tipMessage });
-    // 捕获照片
-    const photo = this.capturePhoto().base64;
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();
     // 显示结果
-    this.showResult(photo);
+    this.showResult();
   }
 
   private async startCamera(): Promise<void> {
@@ -297,6 +293,12 @@ class FaceVerification {
   }
 
   private async dazzle(onFrame: OnFrame): Promise<ReflectDataSuccess> {
+    let frameCache: string | SingleFaceLandmarkerResult = "";
+    this.onFrame = (frame) => {
+      frameCache = frame;
+      onFrame(frame);
+    };
+    const reflectFrames = await this.captureDazzleFrames(() => frameCache);
     const result: ReflectDataSuccess = {
       colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
       colorList: [
@@ -304,88 +306,49 @@ class FaceVerification {
         "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
         "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
       ],
-      reflectFrames: [],
+      reflectFrames: reflectFrames,
     };
-
-    let invalid = false;
-    do {
-      let frameCache: string | SingleFaceLandmarkerResult = "";
-      this.onFrame = (frame) => {
-        frameCache = frame;
-        onFrame(frame);
-      };
-  
-      // 炫彩闪烁前，重置状态
-      result.reflectFrames = [];
-      // 炫彩闪烁 & 捕获脸部图片
-      const [_, framesData] = await Promise.all([
-        this.backgroungColorDazzle(1600),
-        this.captureDazzleFrames(1600, 43, () => frameCache),
-      ]);
-      // 将捕获到的脸部图片添加到结果中
-      result.reflectFrames = framesData.reflectFrames;
-      // 如果捕获到无效的图片，则重试
-      invalid = framesData.invalid;
-    } while (invalid);
-
     return result;
   }
 
-  private async backgroungColorDazzle(ms: number): Promise<void> {
+  private async captureDazzleFrames(fetchFrame: () => string | SingleFaceLandmarkerResult): Promise<ReflectFrame[]> {
     const colorList = [
-      [0, 0, 0, 76],
+      [0, 0, 0, 76], 
       [15, 95, 35, 159],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [55, 30, 200, 242],
-      [55, 30, 200, 242],
-      [55, 30, 200, 242],
-      [55, 30, 200, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
-      [31, 191, 70, 242],
+      [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
+      [55, 30, 200, 242], [55, 30, 200, 242], [55, 30, 200, 242], [55, 30, 200, 242],
+      [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
       [15, 95, 35, 159],
       [0, 0, 0, 76],
-      [204, 204, 204, 17]
+      [204, 204, 204, 17],
     ];
+    const reflectFrames: ReflectFrame[] = [];
     for (const color of colorList) {
       const [r, g, b, a] = color;
       this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
       this.colorBackground.style.opacity = '1';
-      await new Promise((resolve) => setTimeout(resolve, ms / colorList.length));
-    }
-    this.colorBackground.style.opacity = '0';
-  }
 
-  private async captureDazzleFrames(ms: number, frames: number, fetchFrame: () => string | SingleFaceLandmarkerResult): Promise<{
-    readonly reflectFrames: ReflectFrame[];
-    readonly invalid: boolean;
-  }> {
-    const reflectFrames: ReflectFrame[] = [];
-    let invalid = false;
-    for (let i = 0; i < frames; i ++) {
-      await new Promise((resolve) => setTimeout(resolve, ms / frames));
-
-      const frame = fetchFrame();
       // 获取一帧脸部图片（通过MediaPipe计算出的脸部信息，在全量视频帧的基础上，裁剪出脸部区域）
-      if (typeof frame === 'string') {
-        invalid = true;
-      } else if (!invalid) {
-        const { base64, mouthCenter } = this.capturePhoto({ face: frame, maxWidth: 180 });
-        // 将脸部图片转换为base64并添加到结果中
-        reflectFrames.push({
-          frame: base64.split(',')[1],
-          time: Date.now() * 1000,
-          x: mouthCenter!.x,
-          y: mouthCenter!.y,
-        });
+      for (let i = 0; i < 2; i ++) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        const frame = fetchFrame();
+        if (typeof frame === 'string') {
+          // do nothing.
+        } else {
+          const { base64, mouthCenter } = this.capturePhoto({ face: frame, width: 174, height: 184 });
+          // 将脸部图片转换为base64并添加到结果中
+          reflectFrames.push({
+            frame: base64.split(',')[1],
+            time: Date.now() * 1000,
+            x: mouthCenter!.x,
+            y: mouthCenter!.y,
+          });
+        }
       }
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    return { reflectFrames, invalid };
+    return reflectFrames;
   }
 
   private predictWebcam() {
@@ -405,7 +368,8 @@ class FaceVerification {
 
   private capturePhoto(extra?: {
     face: SingleFaceLandmarkerResult, 
-    maxWidth: number,
+    width: number,
+    height: number,
   }): {
     base64: string;
     mouthCenter?: { x: number, y: number }; // 嘴部中心点坐标，以裁剪、缩放后的照片为坐标系！！！
@@ -473,46 +437,25 @@ class FaceVerification {
       0, 0, faceWidth, faceHeight          // 目标canvas绘制区域
     );
 
-    // 计算缩放比例
-    const scale = Math.min(extra.maxWidth / faceWidth, extra.maxWidth / faceHeight);
-    const scaledWidth = Math.round(faceWidth * scale);
-    const scaledHeight = Math.round(faceHeight * scale);
-
-    // 如果需要进行缩放
-    if (scale >= 1) {
-      // 不需要缩放，直接返回裁剪后的图片
-      const originalMouthCenter = this.faceDetector!.detectMouthCenter(extra.face, {
-        width: this.video.videoWidth,
-        height: this.video.videoHeight,
-      });
-      
-      // 坐标转换：原始视频坐标 -> 裁剪后坐标
-      const croppedMouthCenter = {
-        x: Math.round(originalMouthCenter.x - minX),
-        y: Math.round(originalMouthCenter.y - minY),
-      };
-      
-      return {
-        base64: faceCanvas.toDataURL('image/jpeg', 0.8),
-        mouthCenter: croppedMouthCenter,
-      };
-    }
+    // 直接缩放到目标尺寸，允许比例改变
+    const targetWidth = extra.width;
+    const targetHeight = extra.height;
     
     const scaledCanvas = document.createElement('canvas');
     const scaledCtx = scaledCanvas.getContext('2d')!;
     
-    scaledCanvas.width = scaledWidth;
-    scaledCanvas.height = scaledHeight;
+    scaledCanvas.width = targetWidth;
+    scaledCanvas.height = targetHeight;
     
     // 使用高质量缩放
     scaledCtx.imageSmoothingEnabled = true;
     scaledCtx.imageSmoothingQuality = 'high';
     
-    // 绘制缩放后的图像
+    // 绘制缩放后的图像（拉伸到目标尺寸）
     scaledCtx.drawImage(
       faceCanvas,
       0, 0, faceWidth, faceHeight,      // 源图像区域
-      0, 0, scaledWidth, scaledHeight   // 目标区域
+      0, 0, targetWidth, targetHeight   // 目标区域（拉伸）
     );
     
     // 获取原始视频中的嘴部中心点坐标
@@ -527,9 +470,13 @@ class FaceVerification {
       y: originalMouthCenter.y - minY,
     };
     
+    // 计算缩放比例（分别计算X和Y方向的缩放比例）
+    const scaleX = targetWidth / faceWidth;
+    const scaleY = targetHeight / faceHeight;
+    
     const scaledMouthCenter = {
-      x: Math.round(croppedMouthCenter.x * scale),
-      y: Math.round(croppedMouthCenter.y * scale),
+      x: Math.round(croppedMouthCenter.x * scaleX),
+      y: Math.round(croppedMouthCenter.y * scaleY),
     };
     
     return {
@@ -548,7 +495,7 @@ class FaceVerification {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  private showResult(photo: string): void {
+  private showResult(): void {
     // 隐藏预览区域
     const previewContainer = document.getElementById('previewContainer') as HTMLElement;
     const buttonArea = document.querySelector('.button-area') as HTMLElement;
@@ -560,9 +507,6 @@ class FaceVerification {
     
     // 显示结果区域
     this.resultArea.style.display = 'flex';
-    
-    // 设置照片
-    this.resultPhoto.innerHTML = `<img src="${photo}" alt="核验照片">`;
     
     // 控制复制按钮的显示
     const copyResultBtn = document.getElementById('copyResultBtn') as HTMLButtonElement;

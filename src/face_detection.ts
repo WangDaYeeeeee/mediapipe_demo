@@ -64,8 +64,9 @@ export class FaceDetector {
     };
     // this.drawFaceLandmarks(result);
 
-    const validation = this.validateFace(result, size);
-    return !!validation ? validation : result;
+    // const validation = this.validateFace(result, size);
+    // return !!validation ? validation : result;
+    return result;
   }
 
   // private drawFaceLandmarks(singleResult: SingleFaceLandmarkerResult): void {
