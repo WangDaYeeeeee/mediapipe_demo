@@ -314,17 +314,19 @@ class FaceVerification {
   private async captureDazzleFrames(fetchFrame: () => string | SingleFaceLandmarkerResult): Promise<ReflectFrame[]> {
     const colorList = [
       [0, 0, 0, 76], 
-      [15, 95, 35, 159],
-      [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
-      [55, 30, 200, 242], [55, 30, 200, 242], [55, 30, 200, 242], [55, 30, 200, 242],
-      [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
-      [15, 95, 35, 159],
+      [115, 26, 67, 159],
+      [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
+      [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
+      [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
+      [115, 26, 67, 159],
       [0, 0, 0, 76],
       [204, 204, 204, 17],
     ];
+    
     const reflectFrames: ReflectFrame[] = [];
     for (const color of colorList) {
       const [r, g, b, a] = color;
+      // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
       this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
       this.colorBackground.style.opacity = '1';
 
@@ -348,6 +350,7 @@ class FaceVerification {
       }
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
+    
     return reflectFrames;
   }
 

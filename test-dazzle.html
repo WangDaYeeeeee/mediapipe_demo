@@ -133,24 +133,23 @@
       }
 
       async dazzle() {
-        return new Promise((resolve, _) => {
+        return new Promise(async (resolve, _) => {
           const colorList = [
             [0, 0, 0, 76],
-            [15, 95, 35, 159],
+            [115, 26, 67, 159],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
             [31, 191, 70, 242],
             [31, 191, 70, 242],
             [31, 191, 70, 242],
-            [31, 191, 70, 242],
-            [55, 30, 200, 242],
-            [55, 30, 200, 242],
-            [55, 30, 200, 242],
-            [55, 30, 200, 242],
-            [31, 191, 70, 242],
-            [31, 191, 70, 242],
-            [31, 191, 70, 242],
-            [31, 191, 70, 242],
-            [31, 191, 70, 242],
-            [15, 95, 35, 159],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
+            [230, 53, 135, 242],
+            [115, 26, 67, 159],
             [0, 0, 0, 76],
             [204, 204, 204, 17]
           ];
@@ -160,9 +159,20 @@
           const updateColor = () => {
             if (currentIndex < colorList.length) {
               const [r, g, b, a] = colorList[currentIndex];
-              this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+              
+              // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
+              const whiteAlpha = 0.3; // 白色背景的透明度
+              const colorAlpha = a / 255;
+              
+              // 计算白色背景和炫彩颜色的混合效果
+              const mixedR = Math.round(r * colorAlpha + 255 * whiteAlpha * (1 - colorAlpha));
+              const mixedG = Math.round(g * colorAlpha + 255 * whiteAlpha * (1 - colorAlpha));
+              const mixedB = Math.round(b * colorAlpha + 255 * whiteAlpha * (1 - colorAlpha));
+              const mixedA = colorAlpha + whiteAlpha * (1 - colorAlpha);
+              
+              this.colorBackground.style.backgroundColor = `rgba(${mixedR}, ${mixedG}, ${mixedB}, ${mixedA})`;
               this.colorBackground.style.opacity = '1';
-              this.status.textContent = `颜色 ${currentIndex + 1}/${colorList.length}: [${r}, ${g}, ${b}, ${a}]`;
+              this.status.textContent = `颜色 ${currentIndex + 1}/${colorList.length}: [${r}, ${g}, ${b}, ${a}] + 白色背景`;
               currentIndex++;
               setTimeout(updateColor, 120);
             } else {
