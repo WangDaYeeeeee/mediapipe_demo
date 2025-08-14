@@ -144,7 +144,10 @@ class FaceVerification {
     this.updateUI('preparing', { tipMessage: '正在加载模型' });
     if (!this.faceDetector) {
       try {
-        this.faceDetector = await FaceDetector.create();
+        this.faceDetector = await FaceDetector.create({
+          validWidth: { min: 165, max: 185 },
+          validArea: { minX: 120, minY: 80, maxX: 360, maxY: 560 },
+        });
       } catch (error) {
         console.error('初始化模型失败:', error);
         this.updateUI('error', { tipMessage: '人脸核验初始化失败，请刷新页面重试' });
