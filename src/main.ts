@@ -238,8 +238,8 @@ class FaceVerification {
   private async startCamera(): Promise<void> {
     this.video.srcObject = await navigator.mediaDevices.getUserMedia({ 
       video: {
-        width: { ideal: 720, min: 240, max: 1280 },
-        height: { ideal: 960, min: 320, max: 1920 },
+        width: { ideal: 480 },
+        height: { ideal: 640 },
         facingMode: 'user',
         frameRate: { ideal: 30 },
       },
@@ -261,7 +261,7 @@ class FaceVerification {
             if (blinkDetected) {
               // 检测到眨眼，生成视频
               // const promise = this.videoBuffer.getFrames();
-              resolve();
+              resolve(new Promise((resolve) => setTimeout(resolve, 1000)));
             }
           }
         } finally {
@@ -283,7 +283,7 @@ class FaceVerification {
             if (mouthOpenDetected) {
               // 检测到张嘴，生成视频
               // const promise = this.videoBuffer.getFrames();
-              resolve();
+              resolve(new Promise((resolve) => setTimeout(resolve, 1000)));
             }
           }
         } finally {
@@ -311,7 +311,7 @@ class FaceVerification {
         if (typeof frame === 'string') {
           // do nothing.
         } else {
-          const { base64, mouthCenter } = this.capturePhoto({ face: frame, width: 174, height: 184 });
+          const { base64, mouthCenter } = this.capturePhoto(frame);
           // 将脸部图片转换为base64并添加到结果中
           reflectFrames.push({
             frame: base64.split(',')[1],
@@ -374,11 +374,7 @@ class FaceVerification {
     }
   }
 
-  private capturePhoto(extra?: {
-    face: SingleFaceLandmarkerResult, 
-    width: number,
-    height: number,
-  }): {
+  private capturePhoto(face: SingleFaceLandmarkerResult): {
     base64: string;
     mouthCenter?: { x: number, y: number }; // 嘴部中心点坐标，以裁剪、缩放后的照片为坐标系！！！
   } {
@@ -391,14 +387,9 @@ class FaceVerification {
     
     // 绘制视频帧到canvas
     tempCtx.drawImage(this.video, 0, 0);
-    if (!extra) { // 如果未提供人脸信息，则返回全量视频帧
-      return {
-        base64: tempCanvas.toDataURL('image/jpeg', 0.8),
-      };
-    }
 
     // 获取脸部轮廓点
-    const faceLandmarks = extra.face.faceLandmarks;
+    const faceLandmarks = face.faceLandmarks;
     const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
     
     // 计算脸部边界框
@@ -444,30 +435,9 @@ class FaceVerification {
       minX, minY, faceWidth, faceHeight,  // 源图像裁剪区域
       0, 0, faceWidth, faceHeight          // 目标canvas绘制区域
     );
-
-    // 直接缩放到目标尺寸，允许比例改变
-    const targetWidth = extra.width;
-    const targetHeight = extra.height;
-    
-    const scaledCanvas = document.createElement('canvas');
-    const scaledCtx = scaledCanvas.getContext('2d')!;
-    
-    scaledCanvas.width = targetWidth;
-    scaledCanvas.height = targetHeight;
-    
-    // 使用高质量缩放
-    scaledCtx.imageSmoothingEnabled = true;
-    scaledCtx.imageSmoothingQuality = 'high';
-    
-    // 绘制缩放后的图像（拉伸到目标尺寸）
-    scaledCtx.drawImage(
-      faceCanvas,
-      0, 0, faceWidth, faceHeight,      // 源图像区域
-      0, 0, targetWidth, targetHeight   // 目标区域（拉伸）
-    );
     
     // 获取原始视频中的嘴部中心点坐标
-    const originalMouthCenter = this.faceDetector!.detectMouthCenter(extra.face, {
+    const originalMouthCenter = this.faceDetector!.detectMouthCenter(face, {
       width: this.video.videoWidth,
       height: this.video.videoHeight,
     });
@@ -478,18 +448,9 @@ class FaceVerification {
       y: originalMouthCenter.y - minY,
     };
     
-    // 计算缩放比例（分别计算X和Y方向的缩放比例）
-    const scaleX = targetWidth / faceWidth;
-    const scaleY = targetHeight / faceHeight;
-    
-    const scaledMouthCenter = {
-      x: Math.round(croppedMouthCenter.x * scaleX),
-      y: Math.round(croppedMouthCenter.y * scaleY),
-    };
-    
     return {
-      base64: scaledCanvas.toDataURL('image/jpeg', 0.8),
-      mouthCenter: scaledMouthCenter,
+      base64: faceCanvas.toDataURL('image/jpeg'),
+      mouthCenter: croppedMouthCenter,
     };
   }
 
