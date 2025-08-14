@@ -146,17 +146,17 @@ export class FaceDetector {
   //     return validation;
   //   }
 
-  //   // 检查人脸距离
-  //   validation = this.validateFaceDistance(singleResult, size);
-  //   if (!!validation) {
-  //     return validation;
-  //   }
+    // // 检查人脸距离
+    // validation = this.validateFaceDistance(singleResult, size);
+    // if (!!validation) {
+    //   return validation;
+    // }
     
-  //   // 计算人脸中心位置
-  //   validation = this.validateFaceCentered(singleResult, size);
-  //   if (!!validation) {
-  //     return validation;
-  //   }
+    // // 计算人脸中心位置
+    // validation = this.validateFaceCentered(singleResult, size);
+    // if (!!validation) {
+    //   return validation;
+    // }
 
   //   return undefined;
   // }
@@ -248,7 +248,7 @@ export class FaceDetector {
   //   const faceTurnLeftOrRight = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
   //   const faceTilt = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
 
-  //   const threshold = 10; // 阈值
+  //   const threshold = 15; // 阈值
 
   //   // 检查三个角度是否都在阈值范围内
   //   const isFaceUpOrDown = Math.abs(faceUpOrDown) > threshold;
@@ -259,22 +259,31 @@ export class FaceDetector {
   //   }
 
   //   const array: string[] = [];
-  //   if (isFaceUpOrDown) {
-  //     array.push('仰头或低头');
+  //   if (faceUpOrDown > threshold) {
+  //     array.push('仰头');
   //   }
-  //   if (isFaceTurnLeftOrRight) {  
-  //     array.push('左右转头');
+  //   if (faceUpOrDown < -threshold) {
+  //     array.push('低头');
   //   }
-  //   if (isFaceTilt) {
-  //     array.push('歪头');  
+  //   if (faceTurnLeftOrRight > threshold) {
+  //     array.push('右转头');
   //   }
-  //   return '请正对镜头，避免' + array.join('、');
+  //   if (faceTurnLeftOrRight < -threshold) {
+  //     array.push('左转头');
+  //   }
+  //   if (faceTilt > threshold) {
+  //     array.push('左歪头');
+  //   }
+  //   if (faceTilt < -threshold) {
+  //     array.push('右歪头');
+  //   }
+  //   return '⚠️' + array.join('、');
   // }
 
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
     const leftEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkLeft') ?? 0;
     const rightEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkRight') ?? 0;
-    const blinkThreshold = 0.7;
+    const blinkThreshold = 0.6;
     return leftEyeBlinkScore > blinkThreshold && rightEyeBlinkScore > blinkThreshold
   }
 
