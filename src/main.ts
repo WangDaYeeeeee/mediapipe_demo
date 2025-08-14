@@ -249,7 +249,7 @@ class FaceVerification {
     });
   }
 
-  private async detectBlink(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<Blob> {
+  private async detectBlink(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<void> {
     let blinkDetected = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
@@ -260,8 +260,8 @@ class FaceVerification {
             blinkDetected = this.faceDetector!.detectBlink(frame);
             if (blinkDetected) {
               // 检测到眨眼，生成视频
-              const promise = this.videoBuffer.getFrames();
-              resolve(promise);
+              // const promise = this.videoBuffer.getFrames();
+              resolve();
             }
           }
         } finally {
@@ -271,7 +271,7 @@ class FaceVerification {
     });
   }
 
-  private async detectMouthOpen(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<Blob> {
+  private async detectMouthOpen(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<void> {
     let mouthOpenDetected = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
@@ -282,8 +282,8 @@ class FaceVerification {
             mouthOpenDetected = this.faceDetector!.detectMouthOpen(frame);
             if (mouthOpenDetected) {
               // 检测到张嘴，生成视频
-              const promise = this.videoBuffer.getFrames();
-              resolve(promise);
+              // const promise = this.videoBuffer.getFrames();
+              resolve();
             }
           }
         } finally {
@@ -335,6 +335,14 @@ class FaceVerification {
     this.colorBackground.style.opacity = '0';
     dazzling = false;
     
+    // 如果帧数超过60帧，均匀随机地删除多余帧
+    const maxFrames = 60;
+    let processedFrames = reflectFrames;
+    
+    if (reflectFrames.length > maxFrames) {
+      processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
+    }
+    
     const result: ReflectDataSuccess = {
       colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
       colorList: [
@@ -342,7 +350,7 @@ class FaceVerification {
         "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
         "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
       ],
-      reflectFrames: reflectFrames,
+      reflectFrames: processedFrames,
     };
     return result;
   }
@@ -646,4 +654,60 @@ class FaceVerification {
   //   document.body.removeChild(a);
   //   URL.revokeObjectURL(url);
   // }
+
+  /**
+   * 均匀随机采样帧，保持原始时间顺序，确保无重复
+   * @param frames 原始帧数组
+   * @param targetCount 目标帧数
+   * @returns 采样后的帧数组
+   */
+  private uniformlySampleFrames(frames: ReflectFrame[], targetCount: number): ReflectFrame[] {
+    if (frames.length <= targetCount) {
+      return frames;
+    }
+
+    const result: ReflectFrame[] = [];
+    const step = frames.length / targetCount;
+    const usedIndices = new Set<number>(); // 用于跟踪已使用的索引
+    
+    // 均匀采样，在每个区间内随机选择一帧
+    for (let i = 0; i < targetCount; i++) {
+      const startIndex = Math.floor(i * step);
+      const endIndex = Math.min(Math.floor((i + 1) * step), frames.length);
+      
+      // 在当前区间内找到未使用的帧
+      let randomIndex: number;
+      let attempts = 0;
+      const maxAttempts = 10; // 防止无限循环
+      
+      do {
+        const rangeSize = endIndex - startIndex;
+        randomIndex = startIndex + Math.floor(Math.random() * rangeSize);
+        attempts++;
+        
+        // 如果当前区间所有帧都被使用了，尝试下一个区间
+        if (attempts > maxAttempts) {
+          // 寻找下一个可用的帧
+          for (let j = startIndex; j < frames.length; j++) {
+            if (!usedIndices.has(j)) {
+              randomIndex = j;
+              break;
+            }
+          }
+          break;
+        }
+      } while (usedIndices.has(randomIndex));
+      
+      // 标记为已使用并添加到结果
+      usedIndices.add(randomIndex);
+      if (frames[randomIndex]) {
+        result.push(frames[randomIndex]);
+      }
+    }
+    
+    // 确保结果按时间顺序排列
+    result.sort((a, b) => a.time - b.time);
+    
+    return result;
+  }
 }
