@@ -1,6 +1,7 @@
 import { FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
 import { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { VideoFrameBuffer } from "./video_buffer";
+import { showNotification } from "./notification";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -239,8 +240,15 @@ class FaceVerification {
   }
 
   private async startCamera(): Promise<void> {
+    // 检测设备类型和方向
+    const isMobile = /iPhone|iPad|iPod|Android|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/.test(navigator.userAgent);
     this.video.srcObject = await navigator.mediaDevices.getUserMedia({ 
-      video: {
+      video: isMobile ? {
+        width: 640,
+        height: 480,
+        facingMode: 'user',
+        frameRate: { ideal: 30 },
+      } : {
         width: { ideal: 480 },
         height: { ideal: 640 },
         facingMode: 'user',
@@ -560,51 +568,19 @@ class FaceVerification {
   private async manualCopyResult(): Promise<void> {
     const lastResult = (window as any).lastVerificationResult;
     if (!lastResult) {
-      this.showNotification('没有可复制的结果', 'error');
+      showNotification('没有可复制的结果', 'error');
       return;
     }
 
     try {
       await navigator.clipboard.writeText(lastResult);
-      this.showNotification('结果已复制到剪切板', 'success');
+      showNotification('结果已复制到剪切板', 'success');
       // 清除存储的结果
       delete (window as any).lastVerificationResult;
     } catch (error) {
       console.error('手动复制失败:', error);
-      this.showNotification('复制失败，请手动复制控制台中的结果', 'error');
+      showNotification('复制失败，请手动复制控制台中的结果', 'error');
     }
-  }
-
-  // 显示通知
-  private showNotification(message: string, type: 'success' | 'error'): void {
-    // 移除现有通知
-    const existingNotification = document.querySelector('.notification');
-    if (existingNotification) {
-      existingNotification.remove();
-    }
-
-    // 创建新通知
-    const notification = document.createElement('div');
-    notification.className = `notification ${type === 'success' ? 'success' : 'error'}`;
-    notification.textContent = message;
-    notification.style.background = type === 'success' ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.9)';
-    
-    document.body.appendChild(notification);
-    
-    // 显示通知
-    setTimeout(() => {
-      notification.classList.add('show');
-    }, 100);
-    
-    // 自动隐藏通知
-    setTimeout(() => {
-      notification.classList.remove('show');
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
-        }
-      }, 300);
-    }, 3000);
   }
 
   // 下载文件

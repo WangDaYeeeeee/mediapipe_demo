@@ -253,7 +253,7 @@ export class FaceDetector {
       return '⚠️ 请往下一点';
     }
     if (maxY > this.expectedFaceFeatures.validArea.maxY) {
-      return '⚠️ 请往上一点';
+      return '⚠️ ';
     }
     return undefined;
   }
