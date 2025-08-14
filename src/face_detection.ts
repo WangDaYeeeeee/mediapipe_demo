@@ -46,7 +46,7 @@ export class FaceDetector {
     }
 
     const startTimeMs = performance.now();
-    // const size = { width: video.videoWidth, height: video.videoHeight };
+    const size = { width: video.videoWidth, height: video.videoHeight };
     const results = faceLandmarker.detectForVideo(video, startTimeMs);
     if (results.faceLandmarks.length === 0) {
       return '未检测到人脸';
@@ -64,9 +64,8 @@ export class FaceDetector {
     };
     // this.drawFaceLandmarks(result);
 
-    // const validation = this.validateFace(result, size);
-    // return !!validation ? validation : result;
-    return result;
+    const validation = this.validateFace(result, size);
+    return !!validation ? validation : result;
   }
 
   // private drawFaceLandmarks(singleResult: SingleFaceLandmarkerResult): void {
@@ -137,148 +136,148 @@ export class FaceDetector {
   //   }
   // }
 
-  // private validateFace(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
-  //   let validation: string | undefined;
+  private validateFace(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
+    let validation: string | undefined;
 
-  //   // 检查人脸朝向
-  //   validation = this.validateFaceOrientation(singleResult);
-  //   if (!!validation) {
-  //     return validation;
-  //   }
+    // 检查人脸朝向
+    validation = this.validateFaceOrientation(singleResult);
+    if (!!validation) {
+      return validation;
+    }
 
-    // // 检查人脸距离
-    // validation = this.validateFaceDistance(singleResult, size);
-    // if (!!validation) {
-    //   return validation;
-    // }
+    // 检查人脸距离
+    validation = this.validateFaceDistance(singleResult, size);
+    if (!!validation) {
+      return validation;
+    }
     
-    // // 计算人脸中心位置
-    // validation = this.validateFaceCentered(singleResult, size);
-    // if (!!validation) {
-    //   return validation;
-    // }
+    // 计算人脸中心位置
+    validation = this.validateFaceCentered(singleResult, size);
+    if (!!validation) {
+      return validation;
+    }
 
-  //   return undefined;
-  // }
+    return undefined;
+  }
 
-  // private validateFaceCentered(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
-  //   // 使用脸部轮廓点计算人脸中心
-  //   const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
-  //   const sum: {x: number, y: number} = faceOval.reduce((prev, current) => {
-  //     const point = singleResult.faceLandmarks[current.start];
-  //     return { 
-  //       x: prev.x + point.x * size.width, 
-  //       y: prev.y + point.y * size.height,
-  //     }
-  //   }, { x: 0, y: 0 });
-  //   const faceCenter = {
-  //     x: sum.x / faceOval.length,
-  //     y: sum.y / faceOval.length,
-  //   };
-
-  //   const centerX = size.width / 2;
-  //   const centerY = size.height / 2;
-  //   const distance = Math.sqrt(
-  //     Math.pow(faceCenter.x - centerX, 2) + Math.pow(faceCenter.y - centerY, 2)
-  //   );
+  private validateFaceOrientation(singleResult: SingleFaceLandmarkerResult): string | undefined {
+    if (!singleResult.facialTransformationMatrixes) {
+      console.error('`facialTransformationMatrixes` is undefined, check `outputFacialTransformationMatrixes` is true');
+      return undefined;
+    }
     
-  //   // 根据画布大小动态调整阈值，人脸中心距离画布中心不超过画布较小边的10%
-  //   const threshold = Math.min(size.width, size.height) * 0.1;
-  //   const isCentered = distance < threshold;
-
-  //   // this.drawPositionGuide(size, {
-  //   //   faceCenter: faceCenter,
-  //   //   faceCentered: isCentered,
-  //   // });
-  //   return isCentered ? undefined : '请保持人脸在屏幕中央';
-  // }
-
-  // private validateFaceDistance(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
-  //   // 使用脸部轮廓的边界框计算人脸大小
-  //   const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
-  //   let minX = Infinity, maxX = -Infinity;
-  //   let minY = Infinity, maxY = -Infinity;
-    
-  //   for (const conn of faceOval) {
-  //     const point = singleResult.faceLandmarks[conn.start];
-  //     const x = point.x * size.width;
-  //     const y = point.y * size.height;
-  //     minX = Math.min(minX, x);
-  //     maxX = Math.max(maxX, x);
-  //     minY = Math.min(minY, y);
-  //     maxY = Math.max(maxY, y);
-  //   }
-    
-  //   const width = maxX - minX;
-  //   const height = maxY - minY;
-  //   const maxLength = Math.max(width, height); // 返回较大的尺寸作为人脸大小
-
-  //   // 检查人脸大小是否在合适范围内
-  //   // 人脸大小应该在画布较小边的40%-60%之间
-  //   const minSize = Math.min(size.width, size.height) * 0.4;
-  //   const maxSize = Math.min(size.width, size.height) * 0.6;
-
-  //   if (maxLength < minSize) {
-  //     return '请靠近摄像头';
-  //   }
-  //   if (maxLength > maxSize) {
-  //     return '请远离摄像头';
-  //   }
-  //   return undefined;
-  // }
-
-  // private validateFaceOrientation(singleResult: SingleFaceLandmarkerResult): string | undefined {
-  //   if (!singleResult.facialTransformationMatrixes) {
-  //     console.error('`facialTransformationMatrixes` is undefined, check `outputFacialTransformationMatrixes` is true');
-  //     return undefined;
-  //   }
-    
-  //   // 使用MediaPipe的面部变换矩阵计算3D朝向
-  //   const matrix = singleResult.facialTransformationMatrixes;
+    // 使用MediaPipe的面部变换矩阵计算3D朝向
+    const matrix = singleResult.facialTransformationMatrixes;
       
-  //   // 从变换矩阵中提取欧拉角
-  //   // MediaPipe的变换矩阵是4x4的，包含旋转信息
-  //   const rotationMatrix = [
-  //     [matrix.data[0], matrix.data[1], matrix.data[2]],
-  //     [matrix.data[4], matrix.data[5], matrix.data[6]],
-  //     [matrix.data[8], matrix.data[9], matrix.data[10]]
-  //   ];
+    // 从变换矩阵中提取欧拉角
+    // MediaPipe的变换矩阵是4x4的，包含旋转信息
+    const rotationMatrix = [
+      [matrix.data[0], matrix.data[1], matrix.data[2]],
+      [matrix.data[4], matrix.data[5], matrix.data[6]],
+      [matrix.data[8], matrix.data[9], matrix.data[10]]
+    ];
     
-  //   const faceUpOrDown = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
-  //   const faceTurnLeftOrRight = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
-  //   const faceTilt = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
+    const faceUpOrDown = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
+    const faceTurnLeftOrRight = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
+    const faceTilt = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
 
-  //   const threshold = 15; // 阈值
+    const threshold = 15; // 阈值
 
-  //   // 检查三个角度是否都在阈值范围内
-  //   const isFaceUpOrDown = Math.abs(faceUpOrDown) > threshold;
-  //   const isFaceTurnLeftOrRight = Math.abs(faceTurnLeftOrRight) > threshold;
-  //   const isFaceTilt = Math.abs(faceTilt) > threshold;
-  //   if (!isFaceUpOrDown && !isFaceTurnLeftOrRight && !isFaceTilt) {
-  //     return undefined;
-  //   }
+    // 检查三个角度是否都在阈值范围内
+    const isFaceUpOrDown = Math.abs(faceUpOrDown) > threshold;
+    const isFaceTurnLeftOrRight = Math.abs(faceTurnLeftOrRight) > threshold;
+    const isFaceTilt = Math.abs(faceTilt) > threshold;
+    if (!isFaceUpOrDown && !isFaceTurnLeftOrRight && !isFaceTilt) {
+      return undefined;
+    }
 
-  //   const array: string[] = [];
-  //   if (faceUpOrDown > threshold) {
-  //     array.push('仰头');
-  //   }
-  //   if (faceUpOrDown < -threshold) {
-  //     array.push('低头');
-  //   }
-  //   if (faceTurnLeftOrRight > threshold) {
-  //     array.push('右转头');
-  //   }
-  //   if (faceTurnLeftOrRight < -threshold) {
-  //     array.push('左转头');
-  //   }
-  //   if (faceTilt > threshold) {
-  //     array.push('左歪头');
-  //   }
-  //   if (faceTilt < -threshold) {
-  //     array.push('右歪头');
-  //   }
-  //   return '⚠️' + array.join('、');
-  // }
+    const array: string[] = [];
+    if (faceUpOrDown > threshold) {
+      array.push('仰头');
+    }
+    if (faceUpOrDown < -threshold) {
+      array.push('低头');
+    }
+    if (faceTurnLeftOrRight > threshold) {
+      array.push('右转头');
+    }
+    if (faceTurnLeftOrRight < -threshold) {
+      array.push('左转头');
+    }
+    if (faceTilt > threshold) {
+      array.push('左歪头');
+    }
+    if (faceTilt < -threshold) {
+      array.push('右歪头');
+    }
+    return '⚠️ ' + array.join('、');
+  }
+
+  private validateFaceDistance(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
+    // 使用脸部轮廓的边界框计算人脸大小
+    const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    
+    for (const conn of faceOval) {
+      const point = singleResult.faceLandmarks[conn.start];
+      const x = point.x * size.width;
+      const y = point.y * size.height;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const maxLength = Math.max(width, height); // 返回较大的尺寸作为人脸大小
+
+    // 检查人脸大小是否在合适范围内
+    // 人脸大小应该在画布较小边的40%-60%之间
+    const minSize = Math.min(size.width, size.height) * 0.4;
+    const maxSize = Math.min(size.width, size.height) * 0.6;
+
+    if (maxLength < minSize) {
+      return '请靠近摄像头';
+    }
+    if (maxLength > maxSize) {
+      return '请远离摄像头';
+    }
+    return undefined;
+  }
+
+  private validateFaceCentered(singleResult: SingleFaceLandmarkerResult, size: Size): string | undefined {
+    // 使用脸部轮廓点计算人脸中心
+    const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
+    const sum: {x: number, y: number} = faceOval.reduce((prev, current) => {
+      const point = singleResult.faceLandmarks[current.start];
+      return { 
+        x: prev.x + point.x * size.width, 
+        y: prev.y + point.y * size.height,
+      }
+    }, { x: 0, y: 0 });
+    const faceCenter = {
+      x: sum.x / faceOval.length,
+      y: sum.y / faceOval.length,
+    };
+
+    const centerX = size.width / 2;
+    const centerY = size.height / 2;
+    const distance = Math.sqrt(
+      Math.pow(faceCenter.x - centerX, 2) + Math.pow(faceCenter.y - centerY, 2)
+    );
+    
+    // 根据画布大小动态调整阈值，人脸中心距离画布中心不超过画布较小边的15%
+    const threshold = Math.min(size.width, size.height) * 0.15;
+    const isCentered = distance < threshold;
+
+    // this.drawPositionGuide(size, {
+    //   faceCenter: faceCenter,
+    //   faceCentered: isCentered,
+    // });
+    return isCentered ? undefined : '⚠️ 人脸偏离中心';
+  }
 
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
     const leftEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkLeft') ?? 0;
