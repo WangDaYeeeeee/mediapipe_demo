@@ -33,6 +33,8 @@ interface ReflectFrame {
   readonly y: number;
 }
 
+const WIDTH_SAFE_MARGIN = 0.05;
+
 class FaceVerification {
   private video!: HTMLVideoElement;
   private canvas!: HTMLCanvasElement;
@@ -146,7 +148,7 @@ class FaceVerification {
     if (!this.faceDetector) {
       try {
         this.faceDetector = await FaceDetector.create({
-          validWidth: { min: 165, max: 185 },
+          validWidth: { min: 160 / (1 + 2 * WIDTH_SAFE_MARGIN), max: 180 / (1 + 2 * WIDTH_SAFE_MARGIN) },
           validArea: { minX: 120, minY: 80, maxX: 360, maxY: 560 },
         });
       } catch (error) {
@@ -418,11 +420,9 @@ class FaceVerification {
     }
     
     // 添加一些边距，确保完整捕获脸部
-    const padding = Math.min(maxX - minX, maxY - minY) * 0.1;
+    const padding = (maxX - minX) * WIDTH_SAFE_MARGIN;
     minX = Math.max(0, minX - padding);
     maxX = Math.min(this.video.videoWidth, maxX + padding);
-    // minY = Math.max(0, minY - padding);
-    // maxY = Math.min(this.video.videoHeight, maxY + padding);
     
     // 裁剪脸部区域
     const faceWidth = maxX - minX;
