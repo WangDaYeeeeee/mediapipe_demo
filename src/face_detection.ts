@@ -57,17 +57,17 @@ export class FaceDetector {
   public detect(video: HTMLVideoElement): SingleFaceLandmarkerResult | string {
     const faceLandmarker = this.faceLandmarker;
     if (!faceLandmarker) {
-      return '人脸核验初始化失败';
+      return '❌ 人脸核验初始化失败';
     }
 
     const startTimeMs = performance.now();
     const videoSize = { width: video.videoWidth, height: video.videoHeight };
     const results = faceLandmarker.detectForVideo(video, startTimeMs);
     if (results.faceLandmarks.length === 0) {
-      return '未检测到人脸';
+      return '❗️ 未检测到人脸';
     }
     if (results.faceLandmarks.length > 1) {
-      return '检测到多张人脸';
+      return '❗️ 检测到多张人脸';
     }
 
     const blendshapesMap: Map<string, number> = results.faceBlendshapes[0].categories.reduce(
@@ -213,7 +213,7 @@ export class FaceDetector {
     if (Math.abs(faceTilt) > threshold) {
       array.push('不要歪头');
     }
-    return '⚠️ 请您' + array.join('、');
+    return '⚠️ 请' + array.join('、');
   }
 
   private validateFacePosition(singleResult: SingleFaceLandmarkerResult, videoSize: Size): string | undefined {
@@ -244,16 +244,16 @@ export class FaceDetector {
 
     // 检查人脸位置是否在合适范围内
     if (minX < this.expectedFaceFeatures.validArea.minX) {
-      return '⚠️ 请靠右一点';
+      return '⚠️ 请靠左一点';
     }
     if (maxX > this.expectedFaceFeatures.validArea.maxX) {
-      return '⚠️ 请靠左一点';
+      return '⚠️ 请靠右一点';
     }
     if (minY < this.expectedFaceFeatures.validArea.minY) { 
       return '⚠️ 请往下一点';
     }
     if (maxY > this.expectedFaceFeatures.validArea.maxY) {
-      return '⚠️ ';
+      return '⚠️ 请往上一点';
     }
     return undefined;
   }
