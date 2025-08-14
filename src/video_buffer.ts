@@ -152,7 +152,8 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
       }
       
       // 返回 MP4 blob
-      return new Blob([mp4Data], { type: 'video/mp4' });
+      const buffer = mp4Data.slice(0, mp4Data.length);
+      return new Blob([buffer], { type: 'video/mp4' });
     } catch (error) {
       console.error('WebM 转 MP4 转换失败:', error);
       // 如果转换失败，返回原始 WebM blob

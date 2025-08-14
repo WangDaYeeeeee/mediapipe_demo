@@ -185,7 +185,7 @@ class FaceVerification {
     this.predictWebcam();
 
     // 眨眼检测
-    const blinkBlob = await this.detectBlink((frame, done) => {
+    await this.detectBlink((frame, done) => {
       if (typeof frame === 'string') {
         this.updateUI('detecting_blink', { tipMessage: frame });
       } else if (!done) {
@@ -197,7 +197,7 @@ class FaceVerification {
     // this.downloadFile(blinkBlob, 'action_1.mp4');
 
     // 张嘴检测
-    const mouthOpenBlob = await this.detectMouthOpen((frame, done) => {
+    await this.detectMouthOpen((frame, done) => {
       if (typeof frame === 'string') {
         this.updateUI('detecting_mouth_open', { tipMessage: frame });
       } else if (!done) {
@@ -324,7 +324,7 @@ class FaceVerification {
       onFrame(frame);
     };
     for (const color of colorList) {
-      const [r, g, b, a] = color;
+      const [r, g, b, _] = color;
       // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
       // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
       this.colorBackground.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
@@ -636,14 +636,14 @@ class FaceVerification {
   }
 
   // 下载文件
-  private downloadFile(blob: Blob, filename: string): void {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+  // private downloadFile(blob: Blob, filename: string): void {
+  //   const url = URL.createObjectURL(blob);
+  //   const a = document.createElement('a');
+  //   a.href = url;
+  //   a.download = filename;
+  //   document.body.appendChild(a);
+  //   a.click();
+  //   document.body.removeChild(a);
+  //   URL.revokeObjectURL(url);
+  // }
 }
