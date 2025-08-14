@@ -46,6 +46,7 @@ class FaceVerification {
   private videoBuffer = VideoFrameBuffer.create();
   private onFrame: OnFrame | undefined;
   private cameraOn: boolean = false;
+  private lastVideoTime: number = 0;
 
   private updateUI(step: VerificationStep, state: UIState): void {
     if (!!state.tipMessage) {
@@ -293,25 +294,7 @@ class FaceVerification {
   }
 
   private async dazzle(onFrame: OnFrame): Promise<ReflectDataSuccess> {
-    let frameCache: string | SingleFaceLandmarkerResult = "";
-    this.onFrame = (frame) => {
-      frameCache = frame;
-      onFrame(frame);
-    };
-    const reflectFrames = await this.captureDazzleFrames(() => frameCache);
-    const result: ReflectDataSuccess = {
-      colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
-      colorList: [
-        "[0,0,0,76]", "[115,26,67,159]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
-        "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
-        "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
-      ],
-      reflectFrames: reflectFrames,
-    };
-    return result;
-  }
-
-  private async captureDazzleFrames(fetchFrame: () => string | SingleFaceLandmarkerResult): Promise<ReflectFrame[]> {
+    const reflectFrames: ReflectFrame[] = [];
     const colorList = [
       [0, 0, 0, 76], 
       [115, 26, 67, 159],
@@ -322,19 +305,9 @@ class FaceVerification {
       [0, 0, 0, 76],
       [204, 204, 204, 17],
     ];
-    
-    const reflectFrames: ReflectFrame[] = [];
-    for (const color of colorList) {
-      const [r, g, b, a] = color;
-      // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
-      this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-      this.colorBackground.style.opacity = '1';
-
-      // 获取一帧脸部图片（通过MediaPipe计算出的脸部信息，在全量视频帧的基础上，裁剪出脸部区域）
-      for (let i = 0; i < 2; i ++) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-
-        const frame = fetchFrame();
+    let dazzling = true;
+    this.onFrame = (frame) => {
+      if (dazzling) {
         if (typeof frame === 'string') {
           // do nothing.
         } else {
@@ -348,10 +321,30 @@ class FaceVerification {
           });
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      onFrame(frame);
+    };
+    for (const color of colorList) {
+      const [r, g, b, a] = color;
+      // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
+      // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+      this.colorBackground.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      this.colorBackground.style.opacity = '1';
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
+    this.colorBackground.style.opacity = '0';
+    dazzling = false;
     
-    return reflectFrames;
+    const result: ReflectDataSuccess = {
+      colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
+      colorList: [
+        "[0,0,0,76]", "[115,26,67,159]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
+        "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
+        "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
+      ],
+      reflectFrames: reflectFrames,
+    };
+    return result;
   }
 
   private predictWebcam() {
@@ -359,9 +352,13 @@ class FaceVerification {
       return;
     }
     try {
-      const result = this.faceDetector!.detect(this.video);
-      this.videoBuffer.addFrame(this.video);
-      this.onFrame?.(result);
+      if (this.lastVideoTime !== this.video.currentTime) {
+        this.lastVideoTime = this.video.currentTime;
+        
+        const result = this.faceDetector!.detect(this.video);
+        this.videoBuffer.addFrame(this.video);
+        this.onFrame?.(result);
+      }
     } catch (error) {
       console.error('预测过程中发生错误:', error);
     } finally {
