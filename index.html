@@ -228,8 +228,34 @@
     .notification.show {
       transform: translateX(0);
     }
+
+    /* 调试按钮样式 */
+    .debug-btn {
+      background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      min-width: 100px;
+    }
+
+    .debug-btn:hover {
+      background: linear-gradient(135deg, #ff9500 0%, #ff7f50 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3);
+    }
+
+    .debug-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-7c48c1e3.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-27457e62.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
@@ -255,6 +281,9 @@
       <div class="progress-step" data-step="mouth"></div>
       <div class="progress-step" data-step="light"></div>
     </div>
+
+    <!-- 调试按钮 -->
+    <button class="btn debug-btn" id="debugLipsBtn" style="margin-top: 10px;">调试嘴唇中心</button>
 
     <!-- 结果展示区域 -->
     <div class="result-area" id="resultArea">
