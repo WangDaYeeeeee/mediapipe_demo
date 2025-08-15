@@ -202,12 +202,12 @@ export class FaceDetector {
     if (this.configs.videoSize.width - faceArea.maxX < this.configs.validMargins.right) {
       return '⚠️ 请靠右一点';
     }
-    if (faceArea.minY < this.configs.validMargins.top) {
-      return '⚠️ 请往下一点';
-    }
-    if (this.configs.videoSize.height - faceArea.maxY < this.configs.validMargins.bottom) {
-      return '⚠️ 请往上一点';
-    }
+    // if (faceArea.minY < this.configs.validMargins.top) {
+    //   return '⚠️ 请往下一点';
+    // }
+    // if (this.configs.videoSize.height - faceArea.maxY < this.configs.validMargins.bottom) {
+    //   return '⚠️ 请往上一点';
+    // }
     return undefined;
   }
 

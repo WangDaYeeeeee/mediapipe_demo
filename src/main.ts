@@ -131,6 +131,22 @@ class FaceVerification {
         this.manualCopyResult();
       });
     }
+
+    // 添加调试信息切换功能
+    const debugToggle = document.getElementById('debugToggle') as HTMLButtonElement;
+    const debugInfo = document.getElementById('debugInfo') as HTMLDivElement;
+    if (debugToggle && debugInfo) {
+      debugToggle.addEventListener('click', () => {
+        const isHidden = debugInfo.classList.contains('hidden');
+        if (isHidden) {
+          debugInfo.classList.remove('hidden');
+          debugToggle.textContent = '隐藏';
+        } else {
+          debugInfo.classList.add('hidden');
+          debugToggle.textContent = '显示';
+        }
+      });
+    }
   }
 
   private resizeCanvas(): void {
@@ -361,6 +377,32 @@ class FaceVerification {
     return result;
   }
 
+  private updateDebugInfo(result: SingleFaceLandmarkerResult | string) {
+    const faceAreaEl = document.getElementById('faceArea');
+    const minXEl = document.getElementById('minX');
+    const minYEl = document.getElementById('minY');
+    const maxXEl = document.getElementById('maxX');
+    const maxYEl = document.getElementById('maxY');
+
+    if (typeof result === 'string') {
+      // 检测失败，显示错误信息
+      if (faceAreaEl) faceAreaEl.textContent = '未检测';
+      if (minXEl) minXEl.textContent = '-';
+      if (minYEl) minYEl.textContent = '-';
+      if (maxXEl) maxXEl.textContent = '-';
+      if (maxYEl) maxYEl.textContent = '-';
+    } else {
+      // 检测成功，显示人脸区域信息
+      const faceArea = this.faceDetector!.detectFaceArea(result);
+      
+      if (faceAreaEl) faceAreaEl.textContent = `${Math.round(faceArea.minX)},${Math.round(faceArea.minY)} - ${Math.round(faceArea.maxX)},${Math.round(faceArea.maxY)}`;
+      if (minXEl) minXEl.textContent = `${faceArea.minX.toFixed(1)}px`;
+      if (minYEl) minYEl.textContent = `${faceArea.minY.toFixed(1)}px`;
+      if (maxXEl) maxXEl.textContent = `${faceArea.maxX.toFixed(1)}px`;
+      if (maxYEl) maxYEl.textContent = `${faceArea.maxY.toFixed(1)}px`;
+    }
+  }
+
   private predictWebcam() {
     if (!this.cameraOn) {
       return;
@@ -370,6 +412,14 @@ class FaceVerification {
         this.lastVideoTime = this.video.currentTime;
         
         const result = this.faceDetector!.detect(this.video);
+        if (typeof result === 'object') {
+          // 人脸检测成功，可以在这里添加额外的处理逻辑
+          // const { minX, minY, maxX, maxY } = this.faceDetector!.detectFaceArea(result);
+        }
+        
+        // 更新调试信息
+        this.updateDebugInfo(result);
+        
         this.videoBuffer.addFrame(this.video);
         this.onFrame?.(result);
       }

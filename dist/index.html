@@ -84,7 +84,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      /* transform: scaleX(-1); */
+      transform: scaleX(-1);
     }
 
     #canvas {
@@ -94,7 +94,7 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      /* transform: scaleX(-1); */
+      transform: scaleX(-1);
     }
 
     /* 取景器指示器 */
@@ -180,10 +180,28 @@
         min-width: 80px;
       }
 
-      .debug-btn {
-        margin-top: 8px;
+      /* 移动端调试信息适配 */
+      .debug-info {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        font-size: 10px;
+        padding: 10px;
+      }
+
+      .debug-info h3 {
         font-size: 12px;
-        padding: 8px 16px;
+      }
+
+      .debug-info .debug-item {
+        margin: 3px 0;
+      }
+
+      .debug-info .debug-toggle {
+        font-size: 8px;
+        padding: 1px 4px;
       }
     }
 
@@ -214,40 +232,66 @@
       100% { transform: scale(1); }
     }
 
-    /* 按钮样式 */
-    .btn {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    /* 调试信息区域 */
+    .debug-info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #00ff00;
+      padding: 15px;
       border-radius: 8px;
-      color: white;
-      padding: 12px 24px;
-      font-size: 16px;
-      font-weight: 500;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      z-index: 1000;
+      max-width: 300px;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .debug-info h3 {
+      margin: 0 0 10px 0;
+      color: #00ff00;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .debug-info .debug-item {
+      margin: 5px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .debug-info .debug-label {
+      color: #888;
+    }
+
+    .debug-info .debug-value {
+      color: #00ff00;
+      font-weight: bold;
+    }
+
+    .debug-info .debug-toggle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(0, 255, 0, 0.2);
+      border: 1px solid rgba(0, 255, 0, 0.5);
+      color: #00ff00;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
       cursor: pointer;
       transition: all 0.3s ease;
-      min-width: 100px;
     }
 
-    .btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.3);
+    .debug-info .debug-toggle:hover {
+      background: rgba(0, 255, 0, 0.3);
     }
 
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .debug-btn {
-      background: rgba(255, 165, 0, 0.2);
-      border-color: rgba(255, 165, 0, 0.4);
-      margin-top: 10px;
-    }
-
-    .debug-btn:hover {
-      background: rgba(255, 165, 0, 0.3);
-      border-color: rgba(255, 165, 0, 0.5);
+    .debug-info.hidden {
+      opacity: 0.3;
+      pointer-events: none;
     }
 
     /* 通知样式 */
@@ -255,6 +299,7 @@
       position: fixed;
       top: 20px;
       right: 20px;
+      background: rgba(0, 255, 0, 0.9);
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
@@ -266,23 +311,41 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
-    .notification.success {
-      background: rgba(0, 255, 0, 0.9);
-    }
-
-    .notification.error {
-      background: rgba(255, 0, 0, 0.9);
-    }
-
     .notification.show {
       transform: translateX(0);
     }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-da98933c.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-1cb98abc.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
   <div class="color-background" id="colorBackground"></div>
+
+  <!-- 调试信息区域 -->
+  <div class="debug-info" id="debugInfo">
+    <button class="debug-toggle" id="debugToggle">隐藏</button>
+    <h3>调试信息</h3>
+    <div class="debug-item">
+      <span class="debug-label">人脸区域:</span>
+      <span class="debug-value" id="faceArea">未检测</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">minX:</span>
+      <span class="debug-value" id="minX">-</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">minY:</span>
+      <span class="debug-value" id="minY">-</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">maxX:</span>
+      <span class="debug-value" id="maxX">-</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">maxY:</span>
+      <span class="debug-value" id="maxY">-</span>
+    </div>
+  </div>
 
   <div class="container">
     <!-- 提示区域 -->
@@ -304,9 +367,6 @@
       <div class="progress-step" data-step="mouth"></div>
       <div class="progress-step" data-step="light"></div>
     </div>
-
-    <!-- 调试按钮 -->
-    <button class="btn debug-btn" id="debugLipsBtn">调试嘴唇中心</button>
 
     <!-- 结果展示区域 -->
     <div class="result-area" id="resultArea">
