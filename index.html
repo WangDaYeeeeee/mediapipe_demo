@@ -84,7 +84,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      /* transform: scaleX(-1); */
+      transform: scaleX(-1);
     }
 
     #canvas {
@@ -94,7 +94,7 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      /* transform: scaleX(-1); */
+      transform: scaleX(-1);
     }
 
     /* 取景器指示器 */
@@ -179,12 +179,6 @@
         font-size: 14px;
         min-width: 80px;
       }
-
-      .debug-btn {
-        margin-top: 8px;
-        font-size: 12px;
-        padding: 8px 16px;
-      }
     }
 
     /* 加载动画 */
@@ -214,47 +208,12 @@
       100% { transform: scale(1); }
     }
 
-    /* 按钮样式 */
-    .btn {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      color: white;
-      padding: 12px 24px;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      min-width: 100px;
-    }
-
-    .btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.3);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .debug-btn {
-      background: rgba(255, 165, 0, 0.2);
-      border-color: rgba(255, 165, 0, 0.4);
-      margin-top: 10px;
-    }
-
-    .debug-btn:hover {
-      background: rgba(255, 165, 0, 0.3);
-      border-color: rgba(255, 165, 0, 0.5);
-    }
-
     /* 通知样式 */
     .notification {
       position: fixed;
       top: 20px;
       right: 20px;
+      background: rgba(0, 255, 0, 0.9);
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
@@ -266,19 +225,11 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
-    .notification.success {
-      background: rgba(0, 255, 0, 0.9);
-    }
-
-    .notification.error {
-      background: rgba(255, 0, 0, 0.9);
-    }
-
     .notification.show {
       transform: translateX(0);
     }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-da98933c.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-cc385393.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
@@ -304,9 +255,6 @@
       <div class="progress-step" data-step="mouth"></div>
       <div class="progress-step" data-step="light"></div>
     </div>
-
-    <!-- 调试按钮 -->
-    <button class="btn debug-btn" id="debugLipsBtn">调试嘴唇中心</button>
 
     <!-- 结果展示区域 -->
     <div class="result-area" id="resultArea">
