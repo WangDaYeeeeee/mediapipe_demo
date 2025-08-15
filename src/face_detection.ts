@@ -9,30 +9,31 @@ export interface SingleFaceLandmarkerResult {
   readonly facialTransformationMatrixes: Matrix;
 }
 
-interface Size {
-  readonly width: number;
-  readonly height: number;
-}
-
-interface ExpectedFaceFeatures {
-  readonly validWidth: {
+interface Configs {
+  readonly videoSize: {
+    readonly width: number;
+    readonly height: number;
+  };
+  readonly validFaceWidth: {
     readonly min: number;
     readonly max: number;
   };
-  readonly validArea: {
-    readonly minX: number;
-    readonly minY: number;
-    readonly maxX: number;
-    readonly maxY: number;
+  readonly validMargins: {
+    readonly left: number;
+    readonly top: number;
+    readonly right: number;
+    readonly bottom: number;
   };
 }
 
 export class FaceDetector {
 
-  private readonly faceLandmarker: FaceLandmarker;
-  private readonly expectedFaceFeatures: ExpectedFaceFeatures;
+  public static readonly WIDTH_SAFE_MARGIN = 0.05;
 
-  public static async create(expectedFaceFeatures: ExpectedFaceFeatures): Promise<FaceDetector> {
+  private readonly faceLandmarker: FaceLandmarker;
+  private readonly configs: Configs;
+
+  public static async create(configs: Configs): Promise<FaceDetector> {
     const filesetResolver = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
     );
@@ -46,12 +47,12 @@ export class FaceDetector {
       runningMode: "VIDEO",
       numFaces: 1
     });
-    return new FaceDetector(faceLandmarker, expectedFaceFeatures);
+    return new FaceDetector(faceLandmarker, configs);
   }
 
-  constructor(faceLandmarker: FaceLandmarker, expectedFaceFeatures: ExpectedFaceFeatures) {
+  constructor(faceLandmarker: FaceLandmarker, configs: Configs) {
     this.faceLandmarker = faceLandmarker;
-    this.expectedFaceFeatures = expectedFaceFeatures;
+    this.configs = configs;
   }
 
   public detect(video: HTMLVideoElement): SingleFaceLandmarkerResult | string {
@@ -61,7 +62,6 @@ export class FaceDetector {
     }
 
     const startTimeMs = performance.now();
-    const videoSize = { width: video.videoWidth, height: video.videoHeight };
     const results = faceLandmarker.detectForVideo(video, startTimeMs);
     if (results.faceLandmarks.length === 0) {
       return '❗️ 未检测到人脸';
@@ -79,7 +79,7 @@ export class FaceDetector {
     };
     // this.drawFaceLandmarks(result);
 
-    const validation = this.validateFace(result, videoSize);
+    const validation = this.validateFace(result);
     return !!validation ? validation : result;
   }
 
@@ -120,38 +120,7 @@ export class FaceDetector {
   //   }
   // }
 
-  // private drawPositionGuide(videoSize: Size, extra: {
-  //   faceCenter: { x: number, y: number },
-  //   faceCentered: boolean
-  // }): void {
-  //   const ctx = this.ctx;
-  //   if (!ctx) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const centerX = size.width / 2;
-  //     const centerY = size.height / 2;
-      
-  //     // 绘制人脸中心点
-  //     ctx.fillStyle = extra.faceCentered ? '#00ff00' : '#ff0000';
-  //     ctx.beginPath();
-  //     ctx.arc(extra.faceCenter.x, extra.faceCenter.y, 5, 0, 2 * Math.PI);
-  //     ctx.fill();
-      
-  //     // 绘制从人脸中心到目标中心的连线
-  //     ctx.strokeStyle = extra.faceCentered ? '#00ff00' : '#ff0000';
-  //     ctx.lineWidth = 2;
-  //     ctx.beginPath();
-  //     ctx.moveTo(extra.faceCenter.x, extra.faceCenter.y);
-  //     ctx.lineTo(centerX, centerY);
-  //     ctx.stroke();
-  //   } catch (error) {
-  //     console.error('绘制位置指导时发生错误:', error);
-  //   }
-  // }
-
-  private validateFace(singleResult: SingleFaceLandmarkerResult, videoSize: Size): string | undefined {
+  private validateFace(singleResult: SingleFaceLandmarkerResult): string | undefined {
     let validation: string | undefined;
 
     // 检查人脸朝向
@@ -161,7 +130,7 @@ export class FaceDetector {
     }
 
     // 检查人脸位置
-    validation = this.validateFacePosition(singleResult, videoSize);
+    validation = this.validateFacePosition(singleResult);
     if (!!validation) {
       return validation;
     }
@@ -169,7 +138,7 @@ export class FaceDetector {
     return undefined;
   }
 
-  private validateFaceOrientation(singleResult: SingleFaceLandmarkerResult): string | undefined {
+  private validateFaceOrientation(singleResult: SingleFaceLandmarkerResult): string | undefined {  
     if (!singleResult.facialTransformationMatrixes) {
       console.error('`facialTransformationMatrixes` is undefined, check `outputFacialTransformationMatrixes` is true');
       return undefined;
@@ -216,43 +185,27 @@ export class FaceDetector {
     return '⚠️ 请' + array.join('、');
   }
 
-  private validateFacePosition(singleResult: SingleFaceLandmarkerResult, videoSize: Size): string | undefined {
-    // 使用脸部轮廓的边界框计算人脸位置
-    const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
+  private validateFacePosition(singleResult: SingleFaceLandmarkerResult): string | undefined {  
+    const faceArea = this.detectFaceArea(singleResult);
 
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    for (const conn of faceOval) {
-      const point = singleResult.faceLandmarks[conn.start];
-      const x = point.x * videoSize.width;
-      const y = point.y * videoSize.height;
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-
-    // 检查人脸大小是否在合适范围内
-    const width = maxX - minX;
-    // const height = maxY - minY;
-    if (width < this.expectedFaceFeatures.validWidth.min) {
+    if (faceArea.faceWidth < this.configs.validFaceWidth.min) {
       return '⚠️ 请靠近一点';
     }
-    if (width > this.expectedFaceFeatures.validWidth.max) {
+    if (faceArea.faceWidth > this.configs.validFaceWidth.max) {
       return '⚠️ 请离远一些';
     }
 
     // 检查人脸位置是否在合适范围内
-    if (minX < this.expectedFaceFeatures.validArea.minX) {
+    if (faceArea.minX < this.configs.validMargins.left) {
       return '⚠️ 请靠左一点';
     }
-    if (maxX > this.expectedFaceFeatures.validArea.maxX) {
+    if (this.configs.videoSize.width - faceArea.maxX < this.configs.validMargins.right) {
       return '⚠️ 请靠右一点';
     }
-    if (minY < this.expectedFaceFeatures.validArea.minY) { 
+    if (faceArea.minY < this.configs.validMargins.top) {
       return '⚠️ 请往下一点';
     }
-    if (maxY > this.expectedFaceFeatures.validArea.maxY) {
+    if (this.configs.videoSize.height - faceArea.maxY < this.configs.validMargins.bottom) {
       return '⚠️ 请往上一点';
     }
     return undefined;
@@ -271,13 +224,49 @@ export class FaceDetector {
     return mouthOpenScroe > mouthOpenThreshold;
   }
 
-  public detectMouthCenter(singleResult: SingleFaceLandmarkerResult, videoSize: Size): { x: number, y: number } {
+  public detectFaceArea(singleResult: SingleFaceLandmarkerResult): { 
+    minX: number, 
+    minY: number, 
+    maxX: number, 
+    maxY: number,
+    faceWidth: number,
+    faceHeight: number,
+  } {
+    // 获取脸部轮廓点
+    const faceLandmarks = singleResult.faceLandmarks;
+    const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
+    
+    // 计算脸部边界框
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    
+    for (const conn of faceOval) {
+      const point = faceLandmarks[conn.start];
+      const x = point.x * this.configs.videoSize.width;
+      const y = point.y * this.configs.videoSize.height;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    
+    // 添加一些边距，确保完整捕获脸部
+    const padding = (maxX - minX) * FaceDetector.WIDTH_SAFE_MARGIN;
+    minX = Math.max(0, minX - padding);
+    maxX = Math.min(this.configs.videoSize.width, maxX + padding);
+
+    const faceWidth = maxX - minX;
+    const faceHeight = maxY - minY;
+    return { minX, minY, maxX, maxY, faceWidth, faceHeight };
+  }
+
+  public detectMouthCenter(singleResult: SingleFaceLandmarkerResult): { x: number, y: number } {
     const mouthOval = FaceLandmarker.FACE_LANDMARKS_LIPS;
     const sum: {x: number, y: number} = mouthOval.reduce((prev, current) => {
       const point = singleResult.faceLandmarks[current.start];
       return { 
-        x: prev.x + point.x * videoSize.width, 
-        y: prev.y + point.y * videoSize.height,
+        x: prev.x + point.x * this.configs.videoSize.width, 
+        y: prev.y + point.y * this.configs.videoSize.height,
       }
     }, { x: 0, y: 0 });
     return {

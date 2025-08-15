@@ -1,5 +1,4 @@
 import { FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
-import { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { VideoFrameBuffer } from "./video_buffer";
 import { showNotification } from "./notification";
 
@@ -33,7 +32,7 @@ interface ReflectFrame {
   readonly y: number;
 }
 
-const WIDTH_SAFE_MARGIN = 0.05;
+const videoSize = { width: 480, height: 640 };
 
 class FaceVerification {
   private video!: HTMLVideoElement;
@@ -148,8 +147,9 @@ class FaceVerification {
     if (!this.faceDetector) {
       try {
         this.faceDetector = await FaceDetector.create({
-          validWidth: { min: 160 / (1 + 2 * WIDTH_SAFE_MARGIN), max: 180 / (1 + 2 * WIDTH_SAFE_MARGIN) },
-          validArea: { minX: 120, minY: 80, maxX: 360, maxY: 560 },
+          videoSize: videoSize,
+          validFaceWidth: { min: 165, max: 185 },
+          validMargins: { left: 80, top: 160, right: 80, bottom: 160 },
         });
       } catch (error) {
         console.error('初始化模型失败:', error);
@@ -243,16 +243,10 @@ class FaceVerification {
 
   private async startCamera(): Promise<void> {
     // 检测设备类型和方向
-    const isMobile = /iPhone|iPad|iPod|Android|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/.test(navigator.userAgent);
     this.video.srcObject = await navigator.mediaDevices.getUserMedia({ 
-      video: isMobile ? {
-        width: 640,
-        height: 480,
-        facingMode: 'user',
-        frameRate: { ideal: 30 },
-      } : {
-        width: { ideal: 480 },
-        height: { ideal: 640 },
+      video: {
+        width: { ideal: videoSize.width },
+        height: { ideal: videoSize.height },
         facingMode: 'user',
         frameRate: { ideal: 30 },
       },
@@ -337,10 +331,9 @@ class FaceVerification {
       onFrame(frame);
     };
     for (const color of colorList) {
-      const [r, g, b, _] = color;
+      const [r, g, b, a] = color;
       // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
-      // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-      this.colorBackground.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
       this.colorBackground.style.opacity = '1';
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -401,57 +394,23 @@ class FaceVerification {
     // 绘制视频帧到canvas
     tempCtx.drawImage(this.video, 0, 0);
 
-    // 获取脸部轮廓点
-    const faceLandmarks = face.faceLandmarks;
-    const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
-    
-    // 计算脸部边界框
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    
-    for (const conn of faceOval) {
-      const point = faceLandmarks[conn.start];
-      const x = point.x * this.video.videoWidth;
-      const y = point.y * this.video.videoHeight;
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-    
-    // 添加一些边距，确保完整捕获脸部
-    const padding = (maxX - minX) * WIDTH_SAFE_MARGIN;
-    minX = Math.max(0, minX - padding);
-    maxX = Math.min(this.video.videoWidth, maxX + padding);
-    
-    // 裁剪脸部区域
-    const faceWidth = maxX - minX;
-    const faceHeight = maxY - minY;
-    
-    // 确保裁剪区域有效
-    if (faceWidth <= 0 || faceHeight <= 0) {
-      throw new Error('脸部裁剪区域无效');
-    }
-    
+    const { minX, minY, maxX, maxY } = this.faceDetector!.detectFaceArea(face);    
     // 创建新的canvas来存储裁剪后的脸部图片
     const faceCanvas = document.createElement('canvas');
     const faceCtx = faceCanvas.getContext('2d')!;
     
-    faceCanvas.width = faceWidth;
-    faceCanvas.height = faceHeight;
+    faceCanvas.width = maxX - minX;
+    faceCanvas.height = maxY - minY;
     
     // 从原canvas裁剪脸部区域
     faceCtx.drawImage(
       tempCanvas,
-      minX, minY, faceWidth, faceHeight,  // 源图像裁剪区域
-      0, 0, faceWidth, faceHeight          // 目标canvas绘制区域
+      minX, minY, maxX - minX, maxY - minY,  // 源图像裁剪区域
+      0, 0, maxX - minX, maxY - minY          // 目标canvas绘制区域
     );
     
     // 获取原始视频中的嘴部中心点坐标
-    const originalMouthCenter = this.faceDetector!.detectMouthCenter(face, {
-      width: this.video.videoWidth,
-      height: this.video.videoHeight,
-    });
+    const originalMouthCenter = this.faceDetector!.detectMouthCenter(face);
     
     // 坐标转换：原始视频坐标 -> 裁剪后坐标 -> 缩放后坐标
     const croppedMouthCenter = {
