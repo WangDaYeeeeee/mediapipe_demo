@@ -179,6 +179,12 @@
         font-size: 14px;
         min-width: 80px;
       }
+
+      .debug-btn {
+        margin-top: 8px;
+        font-size: 12px;
+        padding: 8px 16px;
+      }
     }
 
     /* 加载动画 */
@@ -208,12 +214,47 @@
       100% { transform: scale(1); }
     }
 
+    /* 按钮样式 */
+    .btn {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: white;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 100px;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .debug-btn {
+      background: rgba(255, 165, 0, 0.2);
+      border-color: rgba(255, 165, 0, 0.4);
+      margin-top: 10px;
+    }
+
+    .debug-btn:hover {
+      background: rgba(255, 165, 0, 0.3);
+      border-color: rgba(255, 165, 0, 0.5);
+    }
+
     /* 通知样式 */
     .notification {
       position: fixed;
       top: 20px;
       right: 20px;
-      background: rgba(0, 255, 0, 0.9);
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
@@ -225,37 +266,19 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
+    .notification.success {
+      background: rgba(0, 255, 0, 0.9);
+    }
+
+    .notification.error {
+      background: rgba(255, 0, 0, 0.9);
+    }
+
     .notification.show {
       transform: translateX(0);
     }
-
-    /* 调试按钮样式 */
-    .debug-btn {
-      background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      font-weight: 500;
-      min-width: 100px;
-    }
-
-    .debug-btn:hover {
-      background: linear-gradient(135deg, #ff9500 0%, #ff7f50 100%);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3);
-    }
-
-    .debug-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-27457e62.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-da98933c.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
@@ -283,7 +306,7 @@
     </div>
 
     <!-- 调试按钮 -->
-    <button class="btn debug-btn" id="debugLipsBtn" style="margin-top: 10px;">调试嘴唇中心</button>
+    <button class="btn debug-btn" id="debugLipsBtn">调试嘴唇中心</button>
 
     <!-- 结果展示区域 -->
     <div class="result-area" id="resultArea">
