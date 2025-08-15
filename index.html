@@ -179,6 +179,30 @@
         font-size: 14px;
         min-width: 80px;
       }
+
+      /* 移动端调试信息适配 */
+      .debug-info {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        font-size: 10px;
+        padding: 10px;
+      }
+
+      .debug-info h3 {
+        font-size: 12px;
+      }
+
+      .debug-info .debug-item {
+        margin: 3px 0;
+      }
+
+      .debug-info .debug-toggle {
+        font-size: 8px;
+        padding: 1px 4px;
+      }
     }
 
     /* 加载动画 */
@@ -208,6 +232,68 @@
       100% { transform: scale(1); }
     }
 
+    /* 调试信息区域 */
+    .debug-info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #00ff00;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      z-index: 1000;
+      max-width: 300px;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .debug-info h3 {
+      margin: 0 0 10px 0;
+      color: #00ff00;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .debug-info .debug-item {
+      margin: 5px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .debug-info .debug-label {
+      color: #888;
+    }
+
+    .debug-info .debug-value {
+      color: #00ff00;
+      font-weight: bold;
+    }
+
+    .debug-info .debug-toggle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(0, 255, 0, 0.2);
+      border: 1px solid rgba(0, 255, 0, 0.5);
+      color: #00ff00;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .debug-info .debug-toggle:hover {
+      background: rgba(0, 255, 0, 0.3);
+    }
+
+    .debug-info.hidden {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
     /* 通知样式 */
     .notification {
       position: fixed;
@@ -229,11 +315,37 @@
       transform: translateX(0);
     }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-376fe8b7.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-1cb98abc.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
   <div class="color-background" id="colorBackground"></div>
+
+  <!-- 调试信息区域 -->
+  <div class="debug-info" id="debugInfo">
+    <button class="debug-toggle" id="debugToggle">隐藏</button>
+    <h3>调试信息</h3>
+    <div class="debug-item">
+      <span class="debug-label">人脸区域:</span>
+      <span class="debug-value" id="faceArea">未检测</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">minX:</span>
+      <span class="debug-value" id="minX">-</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">minY:</span>
+      <span class="debug-value" id="minY">-</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">maxX:</span>
+      <span class="debug-value" id="maxX">-</span>
+    </div>
+    <div class="debug-item">
+      <span class="debug-label">maxY:</span>
+      <span class="debug-value" id="maxY">-</span>
+    </div>
+  </div>
 
   <div class="container">
     <!-- 提示区域 -->
