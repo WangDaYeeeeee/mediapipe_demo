@@ -1,5 +1,10 @@
 import { FaceLandmarker, FilesetResolver, Matrix, NormalizedLandmark } from "@mediapipe/tasks-vision";
 
+export interface FaceDetectionResult {
+  face?: SingleFaceLandmarkerResult | undefined;
+  message?: string | undefined;
+}
+
 export interface SingleFaceLandmarkerResult {
   /** Detected face landmarks in normalized image coordinates. */
   readonly faceLandmarks: NormalizedLandmark[];
@@ -24,11 +29,13 @@ interface Configs {
     readonly right: number;
     readonly bottom: number;
   };
+  readonly faceRatio: {
+    readonly width: number;
+    readonly height: number;
+  };
 }
 
 export class FaceDetector {
-
-  public static readonly WIDTH_SAFE_MARGIN = 0.05;
 
   private readonly faceLandmarker: FaceLandmarker;
   private readonly configs: Configs;
@@ -55,32 +62,32 @@ export class FaceDetector {
     this.configs = configs;
   }
 
-  public detect(video: HTMLVideoElement): SingleFaceLandmarkerResult | string {
+  public detect(video: HTMLVideoElement): FaceDetectionResult {
     const faceLandmarker = this.faceLandmarker;
     if (!faceLandmarker) {
-      return '❌ 人脸核验初始化失败';
+      return { message: '❌ 人脸核验初始化失败' };
     }
 
     const startTimeMs = performance.now();
     const results = faceLandmarker.detectForVideo(video, startTimeMs);
     if (results.faceLandmarks.length === 0) {
-      return '❗️ 未检测到人脸';
+      return { message: '❗️ 未检测到人脸' };
     }
     if (results.faceLandmarks.length > 1) {
-      return '❗️ 检测到多张人脸';
+      return { message: '❗️ 检测到多张人脸' };
     }
 
     const blendshapesMap: Map<string, number> = results.faceBlendshapes[0].categories.reduce(
       (prev, current) => prev.set(current.displayName || current.categoryName, current.score), new Map());
-    const result = {
+    const face = {
       faceLandmarks: results.faceLandmarks[0],
       faceBlendshapes: blendshapesMap,
       facialTransformationMatrixes: results.facialTransformationMatrixes[0]
     };
     // this.drawFaceLandmarks(result);
 
-    const validation = this.validateFace(result);
-    return !!validation ? validation : result;
+    const message = this.validateFace(face);
+    return { face, message };
   }
 
   // private drawFaceLandmarks(singleResult: SingleFaceLandmarkerResult): void {
@@ -138,7 +145,9 @@ export class FaceDetector {
     return undefined;
   }
 
-  private validateFaceOrientation(singleResult: SingleFaceLandmarkerResult): string | undefined {  
+  private validateFaceOrientation(singleResult: SingleFaceLandmarkerResult): string | undefined {
+    return undefined;
+    
     if (!singleResult.facialTransformationMatrixes) {
       console.error('`facialTransformationMatrixes` is undefined, check `outputFacialTransformationMatrixes` is true');
       return undefined;
@@ -185,7 +194,9 @@ export class FaceDetector {
     return '⚠️ 请' + array.join('、');
   }
 
-  private validateFacePosition(singleResult: SingleFaceLandmarkerResult): string | undefined {  
+  private validateFacePosition(singleResult: SingleFaceLandmarkerResult): string | undefined {
+    return undefined;
+    
     const faceArea = this.detectFaceArea(singleResult);
 
     if (faceArea.faceWidth < this.configs.validFaceWidth.min) {
@@ -249,14 +260,14 @@ export class FaceDetector {
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
     }
-    
-    // 添加一些边距，确保完整捕获脸部
-    const padding = (maxX - minX) * FaceDetector.WIDTH_SAFE_MARGIN;
-    minX = Math.max(0, minX - padding);
-    maxX = Math.min(this.configs.videoSize.width, maxX + padding);
+
+    minX = Math.max(0, minX - 10);
+    maxX = Math.min(this.configs.videoSize.width, maxX + 10);
+    maxY = Math.min(this.configs.videoSize.height, maxY + 10);
 
     const faceWidth = maxX - minX;
     const faceHeight = maxY - minY;
+
     return { minX, minY, maxX, maxY, faceWidth, faceHeight };
   }
 

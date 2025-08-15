@@ -1,4 +1,4 @@
-import { FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
+import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
 import { VideoFrameBuffer } from "./video_buffer";
 import { showNotification } from "./notification";
 
@@ -147,6 +147,23 @@ class FaceVerification {
         }
       });
     }
+
+    // 添加Canvas调试功能
+    const capturePhotoBtn = document.getElementById('capturePhotoBtn') as HTMLButtonElement;
+    const canvasDebug = document.getElementById('canvasDebug') as HTMLDivElement;
+    const canvasDebugClose = document.getElementById('canvasDebugClose') as HTMLButtonElement;
+    
+    if (capturePhotoBtn) {
+      capturePhotoBtn.addEventListener('click', () => {
+        this.showCanvasDebug();
+      });
+    }
+    
+    if (canvasDebugClose) {
+      canvasDebugClose.addEventListener('click', () => {
+        canvasDebug.style.display = 'none';
+      });
+    }
   }
 
   private resizeCanvas(): void {
@@ -164,8 +181,17 @@ class FaceVerification {
       try {
         this.faceDetector = await FaceDetector.create({
           videoSize: videoSize,
-          validFaceWidth: { min: 165, max: 185 },
-          validMargins: { left: 80, top: 160, right: 80, bottom: 160 },
+          validFaceWidth: { min: 150, max: 180 },
+          validMargins: { 
+            left: videoSize.width / 6, 
+            top: videoSize.width / 3, 
+            right: videoSize.width / 6,
+            bottom: videoSize.width / 3,
+          },
+          faceRatio: {
+            width: 174,
+            height: 184,
+          },
         });
       } catch (error) {
         console.error('初始化模型失败:', error);
@@ -261,8 +287,8 @@ class FaceVerification {
     // 检测设备类型和方向
     this.video.srcObject = await navigator.mediaDevices.getUserMedia({ 
       video: {
-        width: { ideal: videoSize.width },
-        height: { ideal: videoSize.height },
+        width: { ideal: videoSize.height },
+        height: { ideal: videoSize.width },
         facingMode: 'user',
         frameRate: { ideal: 30 },
       },
@@ -330,11 +356,8 @@ class FaceVerification {
     ];
     let dazzling = true;
     this.onFrame = (frame) => {
-      if (dazzling) {
-        if (typeof frame === 'string') {
-          // do nothing.
-        } else {
-          const { base64, mouthCenter } = this.capturePhoto(frame);
+      if (dazzling && typeof frame === 'object') {
+        const { base64, mouthCenter } = this.capturePhoto(frame);
           // 将脸部图片转换为base64并添加到结果中
           reflectFrames.push({
             frame: base64.split(',')[1],
@@ -342,7 +365,6 @@ class FaceVerification {
             x: mouthCenter!.x,
             y: mouthCenter!.y,
           });
-        }
       }
       onFrame(frame);
     };
@@ -372,34 +394,85 @@ class FaceVerification {
         "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
         "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
       ],
-      reflectFrames: processedFrames,
+      reflectFrames: processedFrames.map(frame => ({
+        ...frame,
+        x: Math.round(frame.x),
+        y: Math.round(frame.y),
+      })),
     };
     return result;
   }
 
-  private updateDebugInfo(result: SingleFaceLandmarkerResult | string) {
+  private updateDebugInfo(result: FaceDetectionResult) {
     const faceAreaEl = document.getElementById('faceArea');
-    const minXEl = document.getElementById('minX');
-    const minYEl = document.getElementById('minY');
-    const maxXEl = document.getElementById('maxX');
-    const maxYEl = document.getElementById('maxY');
+    const faceWidthEl = document.getElementById('faceWidth');
+    const faceHeightEl = document.getElementById('faceHeight');
 
-    if (typeof result === 'string') {
+    if (result.face === undefined) {
       // 检测失败，显示错误信息
       if (faceAreaEl) faceAreaEl.textContent = '未检测';
-      if (minXEl) minXEl.textContent = '-';
-      if (minYEl) minYEl.textContent = '-';
-      if (maxXEl) maxXEl.textContent = '-';
-      if (maxYEl) maxYEl.textContent = '-';
+      if (faceWidthEl) faceWidthEl.textContent = '-';
+      if (faceHeightEl) faceHeightEl.textContent = '-';
     } else {
       // 检测成功，显示人脸区域信息
-      const faceArea = this.faceDetector!.detectFaceArea(result);
+      const faceArea = this.faceDetector!.detectFaceArea(result.face);
       
       if (faceAreaEl) faceAreaEl.textContent = `${Math.round(faceArea.minX)},${Math.round(faceArea.minY)} - ${Math.round(faceArea.maxX)},${Math.round(faceArea.maxY)}`;
-      if (minXEl) minXEl.textContent = `${faceArea.minX.toFixed(1)}px`;
-      if (minYEl) minYEl.textContent = `${faceArea.minY.toFixed(1)}px`;
-      if (maxXEl) maxXEl.textContent = `${faceArea.maxX.toFixed(1)}px`;
-      if (maxYEl) maxYEl.textContent = `${faceArea.maxY.toFixed(1)}px`;
+      if (faceWidthEl) faceWidthEl.textContent = `${(faceArea.maxX - faceArea.minX).toFixed(1)}px`;
+      if (faceHeightEl) faceHeightEl.textContent = `${(faceArea.maxY - faceArea.minY).toFixed(1)}px`;
+    }
+  }
+
+  private showCanvasDebug(): void {
+    if (!this.faceDetector || !this.cameraOn) {
+      showNotification('请先启动摄像头并检测到人脸', 'error');
+      return;
+    }
+
+    // 获取当前视频帧的检测结果
+    const result = this.faceDetector.detect(this.video);
+    if (result.face === undefined) {
+      showNotification('未检测到人脸，无法捕获照片', 'error');
+      return;
+    }
+
+    try {
+      // 调用capturePhoto方法
+      const photoData = this.capturePhoto(result.face);
+      
+      // 显示canvas调试信息
+      const canvasDebug = document.getElementById('canvasDebug') as HTMLDivElement;
+      const tempCanvasImg = document.getElementById('tempCanvasImg') as HTMLImageElement;
+      const faceCanvasImg = document.getElementById('faceCanvasImg') as HTMLImageElement;
+      const tempCanvasResolution = document.getElementById('tempCanvasResolution') as HTMLDivElement;
+      const faceCanvasResolution = document.getElementById('faceCanvasResolution') as HTMLDivElement;
+      
+      if (canvasDebug && tempCanvasImg && faceCanvasImg) {
+        tempCanvasImg.src = photoData.tempCanvasDataUrl;
+        faceCanvasImg.src = photoData.faceCanvasDataUrl;
+        
+        // 更新分辨率信息
+        if (tempCanvasResolution) {
+          tempCanvasResolution.textContent = `分辨率: ${this.video.videoWidth} × ${this.video.videoHeight}`;
+        }
+        if (faceCanvasResolution) {
+          const faceWidth = Math.round(photoData.faceArea.maxX - photoData.faceArea.minX);
+          const faceHeight = Math.round(photoData.faceArea.maxY - photoData.faceArea.minY);
+          faceCanvasResolution.textContent = `分辨率: ${faceWidth} × ${faceHeight}`;
+        }
+        
+        canvasDebug.style.display = 'block';
+        
+        console.log('Canvas调试信息:', {
+          faceArea: photoData.faceArea,
+          mouthCenter: photoData.mouthCenter,
+          tempCanvasSize: `${this.video.videoWidth}x${this.video.videoHeight}`,
+          faceCanvasSize: `${photoData.faceArea.maxX - photoData.faceArea.minX}x${photoData.faceArea.maxY - photoData.faceArea.minY}`
+        });
+      }
+    } catch (error) {
+      console.error('Canvas调试过程中发生错误:', error);
+      showNotification('Canvas调试失败: ' + error, 'error');
     }
   }
 
@@ -411,17 +484,12 @@ class FaceVerification {
       if (this.lastVideoTime !== this.video.currentTime) {
         this.lastVideoTime = this.video.currentTime;
         
-        const result = this.faceDetector!.detect(this.video);
-        if (typeof result === 'object') {
-          // 人脸检测成功，可以在这里添加额外的处理逻辑
-          // const { minX, minY, maxX, maxY } = this.faceDetector!.detectFaceArea(result);
-        }
-        
+        const result = this.faceDetector!.detect(this.video);        
         // 更新调试信息
         this.updateDebugInfo(result);
         
         this.videoBuffer.addFrame(this.video);
-        this.onFrame?.(result);
+        this.onFrame?.(result.message !== undefined ? result.message : result.face!);
       }
     } catch (error) {
       console.error('预测过程中发生错误:', error);
@@ -433,6 +501,9 @@ class FaceVerification {
   private capturePhoto(face: SingleFaceLandmarkerResult): {
     base64: string;
     mouthCenter?: { x: number, y: number }; // 嘴部中心点坐标，以裁剪、缩放后的照片为坐标系！！！
+    tempCanvasDataUrl: string; // 原始视频帧的base64数据
+    faceCanvasDataUrl: string; // 裁剪后的人脸图片base64数据
+    faceArea: { minX: number, minY: number, maxX: number, maxY: number }; // 人脸区域信息
   } {
     // 创建临时canvas来捕获照片
     const tempCanvas = document.createElement('canvas');
@@ -458,19 +529,28 @@ class FaceVerification {
       minX, minY, maxX - minX, maxY - minY,  // 源图像裁剪区域
       0, 0, maxX - minX, maxY - minY          // 目标canvas绘制区域
     );
-    
+
+    const scaledFaceCanvas = document.createElement('canvas');
+    const scaledFaceCtx = scaledFaceCanvas.getContext('2d')!;
+    scaledFaceCanvas.width = 174;
+    scaledFaceCanvas.height = 184;
+    scaledFaceCtx.drawImage(faceCanvas, 0, 0, 174, 184);
+
     // 获取原始视频中的嘴部中心点坐标
-    const originalMouthCenter = this.faceDetector!.detectMouthCenter(face);
-    
+    const mouthCenter = this.faceDetector!.detectMouthCenter(face);
     // 坐标转换：原始视频坐标 -> 裁剪后坐标 -> 缩放后坐标
-    const croppedMouthCenter = {
-      x: originalMouthCenter.x - minX,
-      y: originalMouthCenter.y - minY,
-    };
-    
+    mouthCenter.x = mouthCenter.x - minX;
+    mouthCenter.y = mouthCenter.y - minY;
+    // 缩放
+    mouthCenter.x = mouthCenter.x * 174 / (maxX - minX);
+    mouthCenter.y = mouthCenter.y * 184 / (maxY - minY);
+
     return {
-      base64: faceCanvas.toDataURL('image/jpeg'),
-      mouthCenter: croppedMouthCenter,
+      base64: scaledFaceCanvas.toDataURL('image/jpeg'),
+      mouthCenter: mouthCenter,
+      tempCanvasDataUrl: tempCanvas.toDataURL('image/jpeg'),
+      faceCanvasDataUrl: scaledFaceCanvas.toDataURL('image/jpeg'),
+      faceArea: { minX, minY, maxX, maxY }
     };
   }
 

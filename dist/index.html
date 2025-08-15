@@ -314,8 +314,103 @@
     .notification.show {
       transform: translateX(0);
     }
+
+    /* Canvas调试区域样式 */
+    .canvas-debug {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      z-index: 1000;
+      display: none;
+      backdrop-filter: blur(10px);
+    }
+
+    .canvas-debug h3 {
+      color: #00ff00;
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .canvas-debug-content {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .canvas-item {
+      text-align: center;
+    }
+
+    .canvas-item h4 {
+      color: #00ff00;
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+
+    .canvas-item img {
+      max-width: 200px;
+      max-height: 150px;
+      border: 1px solid rgba(0, 255, 0, 0.5);
+      border-radius: 4px;
+    }
+
+    .canvas-resolution {
+      color: #00ff00;
+      font-size: 12px;
+      margin: 5px 0;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      background: rgba(0, 255, 0, 0.1);
+      padding: 3px 8px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+    }
+
+    .canvas-debug-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 0, 0, 0.2);
+      border: 1px solid rgba(255, 0, 0, 0.5);
+      color: #ff0000;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .canvas-debug-close:hover {
+      background: rgba(255, 0, 0, 0.3);
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 480px) {
+      .canvas-debug {
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        padding: 10px;
+      }
+
+      .canvas-debug-content {
+        gap: 10px;
+      }
+
+      .canvas-item img {
+        max-width: 150px;
+        max-height: 100px;
+      }
+    }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-1cb98abc.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-443ef7b2.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
@@ -330,20 +425,33 @@
       <span class="debug-value" id="faceArea">未检测</span>
     </div>
     <div class="debug-item">
-      <span class="debug-label">minX:</span>
-      <span class="debug-value" id="minX">-</span>
+      <span class="debug-label">width:</span>
+      <span class="debug-value" id="faceWidth">-</span>
     </div>
     <div class="debug-item">
-      <span class="debug-label">minY:</span>
-      <span class="debug-value" id="minY">-</span>
+      <span class="debug-label">height:</span>
+      <span class="debug-value" id="faceHeight">-</span>
     </div>
     <div class="debug-item">
-      <span class="debug-label">maxX:</span>
-      <span class="debug-value" id="maxX">-</span>
+      <button class="debug-toggle" id="capturePhotoBtn" style="margin-top: 10px; width: 100%;">捕获照片调试</button>
     </div>
-    <div class="debug-item">
-      <span class="debug-label">maxY:</span>
-      <span class="debug-value" id="maxY">-</span>
+  </div>
+
+  <!-- Canvas调试区域 -->
+  <div class="canvas-debug" id="canvasDebug">
+    <button class="canvas-debug-close" id="canvasDebugClose">关闭</button>
+    <h3>Canvas调试信息</h3>
+    <div class="canvas-debug-content">
+      <div class="canvas-item">
+        <h4>原始视频帧 (tempCanvas)</h4>
+        <div class="canvas-resolution" id="tempCanvasResolution">分辨率: -</div>
+        <img id="tempCanvasImg" src="" alt="原始视频帧">
+      </div>
+      <div class="canvas-item">
+        <h4>裁剪后人脸 (faceCanvas)</h4>
+        <div class="canvas-resolution" id="faceCanvasResolution">分辨率: -</div>
+        <img id="faceCanvasImg" src="" alt="裁剪后人脸">
+      </div>
     </div>
   </div>
 

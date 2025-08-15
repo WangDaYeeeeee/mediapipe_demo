@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas调试功能测试</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #000;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .test-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+    }
+
+    .test-button {
+      background: #00ff00;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    .test-button:hover {
+      background: #00cc00;
+    }
+
+    /* Canvas调试区域样式 */
+    .canvas-debug {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      z-index: 1000;
+      display: none;
+      backdrop-filter: blur(10px);
+    }
+
+    .canvas-debug h3 {
+      color: #00ff00;
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .canvas-debug-content {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .canvas-item {
+      text-align: center;
+    }
+
+    .canvas-item h4 {
+      color: #00ff00;
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+
+    .canvas-item img {
+      max-width: 200px;
+      max-height: 150px;
+      border: 1px solid rgba(0, 255, 0, 0.5);
+      border-radius: 4px;
+    }
+
+    .canvas-resolution {
+      color: #00ff00;
+      font-size: 12px;
+      margin: 5px 0;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      background: rgba(0, 255, 0, 0.1);
+      padding: 3px 8px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+    }
+
+    .canvas-debug-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 0, 0, 0.2);
+      border: 1px solid rgba(255, 0, 0, 0.5);
+      color: #ff0000;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .canvas-debug-close:hover {
+      background: rgba(255, 0, 0, 0.3);
+    }
+
+    .debug-info {
+      background: rgba(0, 0, 0, 0.8);
+      color: #00ff00;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      margin: 10px 0;
+    }
+
+    .debug-info h3 {
+      margin: 0 0 10px 0;
+      color: #00ff00;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .debug-item {
+      margin: 5px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .debug-label {
+      color: #888;
+    }
+
+    .debug-value {
+      color: #00ff00;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <!-- Canvas调试区域 -->
+  <div class="canvas-debug" id="canvasDebug">
+    <button class="canvas-debug-close" id="canvasDebugClose">关闭</button>
+    <h3>Canvas调试信息</h3>
+    <div class="canvas-debug-content">
+      <div class="canvas-item">
+        <h4>原始视频帧 (tempCanvas)</h4>
+        <div class="canvas-resolution" id="tempCanvasResolution">分辨率: -</div>
+        <img id="tempCanvasImg" src="" alt="原始视频帧">
+      </div>
+      <div class="canvas-item">
+        <h4>裁剪后人脸 (faceCanvas)</h4>
+        <div class="canvas-resolution" id="faceCanvasResolution">分辨率: -</div>
+        <img id="faceCanvasImg" src="" alt="裁剪后人脸">
+      </div>
+    </div>
+  </div>
+
+  <div class="test-container">
+    <h1>Canvas调试功能测试</h1>
+    
+    <div class="test-section">
+      <h2>模拟capturePhoto方法</h2>
+      <p>这个测试页面模拟了capturePhoto方法的功能，展示tempCanvas和faceCanvas的内容：</p>
+      <button class="test-button" onclick="simulateCapturePhoto()">模拟捕获照片</button>
+      <button class="test-button" onclick="clearCanvasDebug()">清除调试信息</button>
+    </div>
+
+    <div class="test-section">
+      <h2>调试信息说明</h2>
+      <div class="debug-info">
+        <h3>capturePhoto方法返回值</h3>
+        <div class="debug-item">
+          <span class="debug-label">base64:</span>
+          <span class="debug-value">裁剪后人脸的base64数据</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">mouthCenter:</span>
+          <span class="debug-value">嘴部中心点坐标（裁剪后坐标系）</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">tempCanvasDataUrl:</span>
+          <span class="debug-value">原始视频帧的base64数据</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">faceCanvasDataUrl:</span>
+          <span class="debug-value">裁剪后的人脸图片base64数据</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">faceArea:</span>
+          <span class="debug-value">人脸区域信息 {minX, minY, maxX, maxY}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>功能说明</h2>
+      <p>在主界面中，你可以：</p>
+      <ul>
+        <li>点击调试信息区域中的"捕获照片调试"按钮</li>
+        <li>系统会调用capturePhoto方法并显示两个canvas的内容</li>
+        <li>左侧显示原始视频帧（tempCanvas）</li>
+        <li>右侧显示裁剪后的人脸图片（faceCanvas）</li>
+        <li>可以在控制台查看详细的调试信息</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Canvas调试区域控制
+    const canvasDebug = document.getElementById('canvasDebug');
+    const canvasDebugClose = document.getElementById('canvasDebugClose');
+    
+    canvasDebugClose.addEventListener('click', () => {
+      canvasDebug.style.display = 'none';
+    });
+
+    // 模拟capturePhoto方法
+    function simulateCapturePhoto() {
+      // 创建模拟的canvas数据
+      const tempCanvas = document.createElement('canvas');
+      const faceCanvas = document.createElement('canvas');
+      
+      tempCanvas.width = 480;
+      tempCanvas.height = 640;
+      faceCanvas.width = 200;
+      faceCanvas.height = 200;
+      
+      // 绘制一些模拟内容
+      const tempCtx = tempCanvas.getContext('2d');
+      const faceCtx = faceCanvas.getContext('2d');
+      
+      // 绘制tempCanvas（模拟视频帧）
+      tempCtx.fillStyle = '#333';
+      tempCtx.fillRect(0, 0, 480, 640);
+      tempCtx.fillStyle = '#666';
+      tempCtx.fillRect(140, 220, 200, 200); // 模拟人脸区域
+      tempCtx.fillStyle = '#00ff00';
+      tempCtx.font = '20px Arial';
+      tempCtx.fillText('tempCanvas', 10, 30);
+      tempCtx.fillText('480x640', 10, 60);
+      
+      // 绘制faceCanvas（模拟裁剪后的人脸）
+      faceCtx.fillStyle = '#666';
+      faceCtx.fillRect(0, 0, 200, 200);
+      faceCtx.fillStyle = '#00ff00';
+      faceCtx.font = '16px Arial';
+      faceCtx.fillText('faceCanvas', 10, 30);
+      faceCtx.fillText('200x200', 10, 60);
+      faceCtx.fillText('Cropped Face', 10, 100);
+      
+      // 显示调试信息
+      const tempCanvasImg = document.getElementById('tempCanvasImg');
+      const faceCanvasImg = document.getElementById('faceCanvasImg');
+      const tempCanvasResolution = document.getElementById('tempCanvasResolution');
+      const faceCanvasResolution = document.getElementById('faceCanvasResolution');
+      
+      tempCanvasImg.src = tempCanvas.toDataURL('image/jpeg');
+      faceCanvasImg.src = faceCanvas.toDataURL('image/jpeg');
+      
+      // 更新分辨率信息
+      tempCanvasResolution.textContent = `分辨率: ${tempCanvas.width} × ${tempCanvas.height}`;
+      faceCanvasResolution.textContent = `分辨率: ${faceCanvas.width} × ${faceCanvas.height}`;
+      
+      canvasDebug.style.display = 'block';
+      
+      // 模拟返回数据
+      const mockPhotoData = {
+        base64: faceCanvas.toDataURL('image/jpeg'),
+        mouthCenter: { x: 100, y: 120 },
+        tempCanvasDataUrl: tempCanvas.toDataURL('image/jpeg'),
+        faceCanvasDataUrl: faceCanvas.toDataURL('image/jpeg'),
+        faceArea: { minX: 140, minY: 220, maxX: 340, maxY: 420 }
+      };
+      
+      console.log('模拟Canvas调试信息:', mockPhotoData);
+    }
+
+    function clearCanvasDebug() {
+      canvasDebug.style.display = 'none';
+      console.log('Canvas调试信息已清除');
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Canvas调试测试页面已加载');
+    });
+  </script>
+</body>
+</html>
