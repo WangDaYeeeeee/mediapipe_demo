@@ -361,6 +361,18 @@
       border-radius: 4px;
     }
 
+    .canvas-resolution {
+      color: #00ff00;
+      font-size: 12px;
+      margin: 5px 0;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      background: rgba(0, 255, 0, 0.1);
+      padding: 3px 8px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+    }
+
     .canvas-debug-close {
       position: absolute;
       top: 10px;
@@ -398,7 +410,7 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-381c8ef8.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-f1e19d30.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
@@ -440,10 +452,12 @@
     <div class="canvas-debug-content">
       <div class="canvas-item">
         <h4>原始视频帧 (tempCanvas)</h4>
+        <div class="canvas-resolution" id="tempCanvasResolution">分辨率: -</div>
         <img id="tempCanvasImg" src="" alt="原始视频帧">
       </div>
       <div class="canvas-item">
         <h4>裁剪后人脸 (faceCanvas)</h4>
+        <div class="canvas-resolution" id="faceCanvasResolution">分辨率: -</div>
         <img id="faceCanvasImg" src="" alt="裁剪后人脸">
       </div>
     </div>
