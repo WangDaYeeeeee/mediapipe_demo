@@ -545,11 +545,27 @@ class FaceVerification {
     mouthCenter.x = mouthCenter.x * 174 / (maxX - minX);
     mouthCenter.y = mouthCenter.y * 184 / (maxY - minY);
 
+    // 镜像反转处理
+    // 1. 对缩放后的人脸图片进行水平镜像反转
+    const mirroredFaceCanvas = document.createElement('canvas');
+    const mirroredFaceCtx = mirroredFaceCanvas.getContext('2d')!;
+    mirroredFaceCanvas.width = 174;
+    mirroredFaceCanvas.height = 184;
+    
+    // 应用水平镜像变换
+    mirroredFaceCtx.scale(-1, 1);
+    mirroredFaceCtx.translate(-174, 0);
+    mirroredFaceCtx.drawImage(scaledFaceCanvas, 0, 0);
+    
+    // 2. 对嘴部中心点坐标进行镜像反转
+    // 在174像素宽度下，镜像反转公式：newX = width - originalX
+    mouthCenter.x = 174 - mouthCenter.x;
+
     return {
-      base64: scaledFaceCanvas.toDataURL('image/jpeg'),
+      base64: mirroredFaceCanvas.toDataURL('image/jpeg'),
       mouthCenter: mouthCenter,
       tempCanvasDataUrl: tempCanvas.toDataURL('image/jpeg'),
-      faceCanvasDataUrl: scaledFaceCanvas.toDataURL('image/jpeg'),
+      faceCanvasDataUrl: mirroredFaceCanvas.toDataURL('image/jpeg'),
       faceArea: { minX, minY, maxX, maxY }
     };
   }
