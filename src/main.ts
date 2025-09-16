@@ -258,16 +258,16 @@ class FaceVerification {
     // this.downloadFile(mouthOpenBlob, 'action_2.mp4');
 
     // 活体检测（炫彩）
-    const reflectDataSuccess = await this.dazzle((frame) => {
+    const reflectDataSuccess = await this.dazzle((frame, progress) => {
+      console.log('dazzle-frame', frame);
       if (typeof frame === 'string') {
-        this.updateUI('dazzling', { tipMessage: frame });
+        this.updateUI('dazzling', { tipMessage: `${frame} (${progress})` });
       } else {
-        this.updateUI('dazzling', { tipMessage: '请保持不动' });
+        this.updateUI('dazzling', { tipMessage: `请保持不动 (${progress})` });
       }
     });
     console.log('reflectDataSuccess', reflectDataSuccess);
-
-    showNotification('📷 采集完成，请稍后', 'success');
+    showNotification('📷 采集完成', 'success');
     
     // 尝试复制到剪切板
     await this.copyToClipboard(reflectDataSuccess);
@@ -345,8 +345,11 @@ class FaceVerification {
     });
   }
 
-  private async dazzle(onFrame: OnFrame): Promise<ReflectDataSuccess> {
+  private async dazzle(
+    onFrame: (frame: string | SingleFaceLandmarkerResult, progress: string) => void
+  ): Promise<ReflectDataSuccess> {
     const reflectFrames: ReflectFrame[] = [];
+    const unitDuration = 120;
     const colorList = [
       [0, 0, 0, 76], 
       [115, 26, 67, 159],
@@ -357,6 +360,7 @@ class FaceVerification {
       [0, 0, 0, 76],
       [204, 204, 204, 17],
     ];
+    let index = 0;
     let dazzling = true;
     this.onFrame = (frame) => {
       if (dazzling && typeof frame === 'object') {
@@ -370,10 +374,10 @@ class FaceVerification {
             y: mouthCenter!.y,
           });
       }
-      onFrame(frame);
+      onFrame(frame, `${index}/${colorList.length}`);
     };
-    const unitDuration = 120;
     for (const _ of colorList) {
+      index += 1;
       // const [r, g, b, a] = color;
       // // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
       // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
