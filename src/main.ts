@@ -379,11 +379,17 @@ class FaceVerification {
       // await new Promise((resolve) => setTimeout(resolve, 100));
 
       // 使用requestAnimationFrame和performance.now()保证时间精准
-      for (const t0 = performance.now(); performance.now() - t0 < unitDuration;) {
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame((_) => resolve());
-        });
-      }
+      const startTime = performance.now();
+      await new Promise<void>((resolve) => {
+        function checkTime() {
+          if (performance.now() - startTime >= unitDuration) {
+            resolve();
+          } else {
+            requestAnimationFrame(checkTime);
+          }
+        }
+        requestAnimationFrame(checkTime);
+      });
     }
     // this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
     // this.colorBackground.style.opacity = '0';
