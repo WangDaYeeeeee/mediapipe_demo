@@ -43,7 +43,7 @@ class FaceVerification {
   private tipArea!: HTMLDivElement;
   private resultArea!: HTMLDivElement;
   private progressIndicator!: HTMLDivElement;
-  private colorBackground!: HTMLDivElement;
+  // private colorBackground!: HTMLDivElement;
 
   private faceDetector: FaceDetector | undefined;
   private videoBuffer = VideoFrameBuffer.create();
