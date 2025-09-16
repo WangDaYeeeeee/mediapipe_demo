@@ -27,6 +27,7 @@ interface ReflectDataSuccess {
 
 interface ReflectFrame {
   readonly frame: string;
+  readonly uncroppedFrame: string;
   readonly time: number;
   readonly x: number;
   readonly y: number;
@@ -357,35 +358,40 @@ class FaceVerification {
     let dazzling = true;
     this.onFrame = (frame) => {
       if (dazzling && typeof frame === 'object') {
-        const { base64, mouthCenter } = this.capturePhoto(frame);
+        const { base64, uncroppedBase64, mouthCenter } = this.capturePhoto(frame);
           // 将脸部图片转换为base64并添加到结果中
           reflectFrames.push({
             frame: base64.split(',')[1],
-            time: Date.now() * 1000,
+            uncroppedFrame: uncroppedBase64.split(',')[1],
+            time: Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`),
             x: mouthCenter!.x,
             y: mouthCenter!.y,
           });
       }
       onFrame(frame);
     };
-    for (const color of colorList) {
-      const [r, g, b, a] = color;
-      // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
-      this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-      this.colorBackground.style.opacity = '1';
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    const unitDuration = 120;
+    for (const _ of colorList) {
+      // const [r, g, b, a] = color;
+      // // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
+      // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+      // this.colorBackground.style.opacity = '1';
+      // await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // 使用requestAnimationFrame和performance.now()保证时间精准
+      for (const t0 = performance.now(); performance.now() - t0 < unitDuration;) {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame((_) => resolve());
+        });
+      }
     }
-    this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
-    this.colorBackground.style.opacity = '0';
+    // this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
+    // this.colorBackground.style.opacity = '0';
     dazzling = false;
     
     // 如果帧数超过60帧，均匀随机地删除多余帧
-    const maxFrames = 60;
-    let processedFrames = reflectFrames;
-    
-    if (reflectFrames.length > maxFrames) {
-      processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
-    }
+    const maxFrames = Math.floor((unitDuration * colorList.length) / 40);
+    const processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
     
     const result: ReflectDataSuccess = {
       colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
@@ -498,76 +504,129 @@ class FaceVerification {
     }
   }
 
+  readonly firstImageResolution = { width: 0, height: 0 };
+  readonly firstFaceArea = { minX: 0, minY: 0, maxX: 0, maxY: 0 }; // 缓存第一张图片的人脸区域坐标
+  // 采集的流程：原始视频帧 -> 水平翻转去除镜像效果 -> 框选人脸区域 -> 裁剪 -> 按比例缩放至固定高度
   private capturePhoto(face: SingleFaceLandmarkerResult): {
     base64: string;
-    mouthCenter?: { x: number, y: number }; // 嘴部中心点坐标，以裁剪、缩放后的照片为坐标系！！！
+    uncroppedBase64: string; // 水平翻转去除镜像效果后的视频帧base64数据
+    mouthCenter?: { x: number; y: number }; // 嘴部中心点坐标，以裁剪、缩放后的照片为坐标系！！！
     tempCanvasDataUrl: string; // 原始视频帧的base64数据
     faceCanvasDataUrl: string; // 裁剪后的人脸图片base64数据
-    faceArea: { minX: number, minY: number, maxX: number, maxY: number }; // 人脸区域信息
+    faceArea: { minX: number; minY: number; maxX: number; maxY: number }; // 人脸区域信息
+    imageWidth: number;
+    imageHeight: number;
   } {
-    // 创建临时canvas来捕获照片
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d')!;
-    
-    tempCanvas.width = this.video.videoWidth;
-    tempCanvas.height = this.video.videoHeight;
-    
-    // 绘制视频帧到canvas
-    tempCtx.drawImage(this.video, 0, 0);
-
-    const { minX, minY, maxX, maxY } = this.faceDetector!.detectFaceArea(face);    
-    // 创建新的canvas来存储裁剪后的脸部图片
-    const faceCanvas = document.createElement('canvas');
-    const faceCtx = faceCanvas.getContext('2d')!;
-    
-    faceCanvas.width = maxX - minX;
-    faceCanvas.height = maxY - minY;
-    
-    // 从原canvas裁剪脸部区域
-    faceCtx.drawImage(
-      tempCanvas,
-      minX, minY, maxX - minX, maxY - minY,  // 源图像裁剪区域
-      0, 0, maxX - minX, maxY - minY          // 目标canvas绘制区域
-    );
-
-    const scaledFaceCanvas = document.createElement('canvas');
-    const scaledFaceCtx = scaledFaceCanvas.getContext('2d')!;
-    scaledFaceCanvas.width = 174;
-    scaledFaceCanvas.height = 184;
-    scaledFaceCtx.drawImage(faceCanvas, 0, 0, 174, 184);
-
-    // 获取原始视频中的嘴部中心点坐标
-    const mouthCenter = this.faceDetector!.detectMouthCenter(face);
-    // 坐标转换：原始视频坐标 -> 裁剪后坐标 -> 缩放后坐标
-    mouthCenter.x = mouthCenter.x - minX;
-    mouthCenter.y = mouthCenter.y - minY;
-    // 缩放
-    mouthCenter.x = mouthCenter.x * 174 / (maxX - minX);
-    mouthCenter.y = mouthCenter.y * 184 / (maxY - minY);
-
-    // 镜像反转处理
-    // 1. 对缩放后的人脸图片进行水平镜像反转
-    const mirroredFaceCanvas = document.createElement('canvas');
-    const mirroredFaceCtx = mirroredFaceCanvas.getContext('2d')!;
-    mirroredFaceCanvas.width = 174;
-    mirroredFaceCanvas.height = 184;
-    
-    // 应用水平镜像变换
-    mirroredFaceCtx.scale(-1, 1);
-    mirroredFaceCtx.translate(-174, 0);
-    mirroredFaceCtx.drawImage(scaledFaceCanvas, 0, 0);
-    
-    // 2. 对嘴部中心点坐标进行镜像反转
-    // 在174像素宽度下，镜像反转公式：newX = width - originalX
-    mouthCenter.x = 174 - mouthCenter.x;
-
-    return {
-      base64: mirroredFaceCanvas.toDataURL('image/jpeg'),
-      mouthCenter: mouthCenter,
-      tempCanvasDataUrl: tempCanvas.toDataURL('image/jpeg'),
-      faceCanvasDataUrl: mirroredFaceCanvas.toDataURL('image/jpeg'),
-      faceArea: { minX, minY, maxX, maxY }
-    };
+     // 创建临时canvas来捕获照片
+     const tempCanvas = document.createElement('canvas');
+     const tempCtx = tempCanvas.getContext('2d')!;
+ 
+     tempCanvas.width = this.video.videoWidth;
+     tempCanvas.height = this.video.videoHeight;
+ 
+     // 绘制嘴部坐标
+     // const mouthPoints = faceDetectorRef.current!.detectMouthPoints(face);
+ 
+     // 水平翻转canvas以纠正镜像问题
+     tempCtx.save(); // 保存当前状态
+     tempCtx.scale(-1, 1); // 水平翻转
+     tempCtx.drawImage(this.video, -tempCanvas.width, 0, tempCanvas.width, tempCanvas.height); // 从负宽度开始绘制
+     tempCtx.restore(); // 恢复原始状态
+ 
+     // 如果是第一张图片，检测人脸区域并缓存；否则使用缓存的坐标
+     let minX: number, minY: number, maxX: number, maxY: number;
+     if (this.firstImageResolution.width === 0 && this.firstImageResolution.height === 0) {
+       // 第一张图片，检测人脸区域并缓存
+       const faceArea = this.faceDetector!.detectFaceArea(face);
+       minX = faceArea.minX;
+       minY = faceArea.minY;
+       maxX = faceArea.maxX;
+       maxY = faceArea.maxY;
+ 
+       // 缓存第一张图片的人脸区域坐标
+       this.firstFaceArea.minX = minX;
+       this.firstFaceArea.minY = minY;
+       this.firstFaceArea.maxX = maxX;
+       this.firstFaceArea.maxY = maxY;
+     } else {
+       // 后续图片，直接使用缓存的坐标
+       minX = this.firstFaceArea.minX;
+       minY = this.firstFaceArea.minY;
+       maxX = this.firstFaceArea.maxX;
+       maxY = this.firstFaceArea.maxY;
+     }
+ 
+     // 由于canvas进行了水平翻转，需要调整人脸区域坐标
+     const canvasWidth = tempCanvas.width;
+     const adjustedMinX = canvasWidth - maxX; // 翻转后的x坐标
+ 
+     // 创建新的canvas来存储裁剪后的脸部图片
+     const faceCanvas = document.createElement('canvas');
+     const faceCtx = faceCanvas.getContext('2d')!;
+ 
+     faceCanvas.width = maxX - minX;
+     faceCanvas.height = maxY - minY;
+ 
+     // 从翻转后的canvas裁剪脸部区域
+     faceCtx.drawImage(
+       tempCanvas,
+       adjustedMinX,
+       minY,
+       maxX - minX,
+       maxY - minY, // 源图像裁剪区域
+       0,
+       0,
+       maxX - minX,
+       maxY - minY // 目标canvas绘制区域
+     );
+ 
+     const scaledFaceCanvas = document.createElement('canvas');
+     const scaledFaceCtx = scaledFaceCanvas.getContext('2d')!;
+     scaledFaceCtx.imageSmoothingEnabled = true;
+     scaledFaceCtx.imageSmoothingQuality = 'high'; // 可选值: 'low', 'medium', 'high'
+ 
+     // 计算当前人脸区域的实际尺寸
+     const currentFaceWidth = maxX - minX;
+     const currentFaceHeight = maxY - minY;
+ 
+     // 固定高度为184，宽度按比例计算
+     const targetHeight = 184;
+     const targetWidth = Math.round((currentFaceWidth / currentFaceHeight) * targetHeight);
+ 
+     // 如果是第一张图片，记录尺寸；否则使用第一张图片的尺寸
+     if (this.firstImageResolution.width === 0 && this.firstImageResolution.height === 0) {
+       this.firstImageResolution.width = targetWidth;
+       this.firstImageResolution.height = targetHeight;
+     }
+ 
+     // 使用第一张图片的尺寸
+     scaledFaceCanvas.width = this.firstImageResolution.width;
+     scaledFaceCanvas.height = this.firstImageResolution.height;
+ 
+     // 绘制并缩放到固定尺寸
+     scaledFaceCtx.drawImage(faceCanvas, 0, 0, this.firstImageResolution.width, this.firstImageResolution.height);
+ 
+     // 获取原始视频中的嘴部中心点坐标
+     const mouthCenter = this.faceDetector!.detectMouthCenter(face);
+     // const points = faceDetectorRef.current!.detectMouthPoints(face);
+     // 坐标转换：原始视频坐标 -> 翻转后坐标 -> 裁剪后坐标 -> 缩放后坐标
+     mouthCenter.x = canvasWidth - mouthCenter.x; // 翻转后的x坐标
+     mouthCenter.x = mouthCenter.x - adjustedMinX; // 裁剪后的x坐标
+     mouthCenter.y = mouthCenter.y - minY; // 裁剪后的y坐标
+     // 缩放到固定尺寸的坐标
+     mouthCenter.x = (mouthCenter.x * this.firstImageResolution.width) / currentFaceWidth;
+     mouthCenter.y = (mouthCenter.y * this.firstImageResolution.height) / currentFaceHeight;
+ 
+     return {
+       base64: scaledFaceCanvas.toDataURL('image/jpeg', 1),
+       uncroppedBase64: tempCanvas.toDataURL('image/jpeg', 1),
+       mouthCenter: mouthCenter,
+       tempCanvasDataUrl: tempCanvas.toDataURL('image/jpeg', 1),
+       faceCanvasDataUrl: scaledFaceCanvas.toDataURL('image/jpeg', 1),
+       faceArea: { minX, minY, maxX, maxY },
+       imageWidth: this.firstImageResolution.width,
+       imageHeight: this.firstImageResolution.height,
+     };
   }
 
   private stopCamera(): void {    
@@ -707,52 +766,22 @@ class FaceVerification {
    * @returns 采样后的帧数组
    */
   private uniformlySampleFrames(frames: ReflectFrame[], targetCount: number): ReflectFrame[] {
-    if (frames.length <= targetCount) {
+    // 如果目标数量大于等于帧数，直接返回所有帧
+    if (targetCount >= frames.length) {
       return frames;
     }
 
     const result: ReflectFrame[] = [];
     const step = frames.length / targetCount;
-    const usedIndices = new Set<number>(); // 用于跟踪已使用的索引
-    
-    // 均匀采样，在每个区间内随机选择一帧
+
+    // 均匀采样
     for (let i = 0; i < targetCount; i++) {
-      const startIndex = Math.floor(i * step);
-      const endIndex = Math.min(Math.floor((i + 1) * step), frames.length);
-      
-      // 在当前区间内找到未使用的帧
-      let randomIndex: number;
-      let attempts = 0;
-      const maxAttempts = 10; // 防止无限循环
-      
-      do {
-        const rangeSize = endIndex - startIndex;
-        randomIndex = startIndex + Math.floor(Math.random() * rangeSize);
-        attempts++;
-        
-        // 如果当前区间所有帧都被使用了，尝试下一个区间
-        if (attempts > maxAttempts) {
-          // 寻找下一个可用的帧
-          for (let j = startIndex; j < frames.length; j++) {
-            if (!usedIndices.has(j)) {
-              randomIndex = j;
-              break;
-            }
-          }
-          break;
-        }
-      } while (usedIndices.has(randomIndex));
-      
-      // 标记为已使用并添加到结果
-      usedIndices.add(randomIndex);
-      if (frames[randomIndex]) {
-        result.push(frames[randomIndex]);
+      const index = Math.floor(i * step);
+      if (frames[index]) {
+        result.push(frames[index]);
       }
     }
-    
-    // 确保结果按时间顺序排列
-    result.sort((a, b) => a.time - b.time);
-    
+
     return result;
   }
 }

@@ -246,11 +246,10 @@ export class FaceDetector {
     // 获取脸部轮廓点
     const faceLandmarks = singleResult.faceLandmarks;
     const faceOval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL;
-    
+
     // 计算脸部边界框
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
-    
     for (const conn of faceOval) {
       const point = faceLandmarks[conn.start];
       const x = point.x * this.configs.videoSize.width;
@@ -261,13 +260,12 @@ export class FaceDetector {
       maxY = Math.max(maxY, y);
     }
 
-    minX = Math.max(0, minX - 10);
-    maxX = Math.min(this.configs.videoSize.width, maxX + 10);
+    minX = Math.max(0, minX - 20);
+    maxX = Math.min(this.configs.videoSize.width, maxX + 20);
     maxY = Math.min(this.configs.videoSize.height, maxY + 10);
 
     const faceWidth = maxX - minX;
     const faceHeight = maxY - minY;
-
     return { minX, minY, maxX, maxY, faceWidth, faceHeight };
   }
 
