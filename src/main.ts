@@ -266,6 +266,8 @@ class FaceVerification {
       }
     });
     console.log('reflectDataSuccess', reflectDataSuccess);
+
+    showNotification('📷 采集完成，请稍后', 'success');
     
     // 尝试复制到剪切板
     await this.copyToClipboard(reflectDataSuccess);

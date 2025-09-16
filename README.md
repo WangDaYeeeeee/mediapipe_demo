@@ -27,22 +27,11 @@ npm run preview
 
 ## GitHub Pages 部署
 
-### 自动部署（推荐）
-
-1. 确保代码已推送到 GitHub 仓库的 `main` 或 `master` 分支
-2. 在 GitHub 仓库设置中启用 GitHub Pages：
-   - 进入仓库 Settings > Pages
-   - Source 选择 "GitHub Actions"
-3. 推送代码到主分支，GitHub Actions 会自动构建并部署
-
 ### 手动部署
 
 ```bash
-# 安装 gh-pages
-npm install --save-dev gh-pages
-
 # 部署到 GitHub Pages
-npm run deploy
+npm run build && npm run deploy && npx gh-pages -d dist --repo git@github.com:WangDaYeeeeee/mediapipe_demo.git
 ```
 
 ## 访问地址
