@@ -115,7 +115,7 @@ class FaceVerification {
     this.tipArea = document.getElementById('tipArea') as HTMLDivElement;
     this.resultArea = document.getElementById('resultArea') as HTMLDivElement;
     this.progressIndicator = document.getElementById('progressIndicator') as HTMLDivElement;
-    this.colorBackground = document.getElementById('colorBackground') as HTMLDivElement;
+    // this.colorBackground = document.getElementById('colorBackground') as HTMLDivElement;
     
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
