@@ -16,12 +16,8 @@ type VerificationStep = 'preparing' | 'error' | 'detecting_blink' | 'detecting_m
 type OnFrame = (frame: string | SingleFaceLandmarkerResult) => void;
 
 interface ReflectDataSuccess {
-  readonly colorData: "1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a";
-  readonly colorList: [
-    "[0,0,0,76]", "[115,26,67,159]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
-    "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
-    "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
-  ];
+  readonly colorData: string,
+  readonly colorList: string[];
   reflectFrames: ReflectFrame[];
 }
 
@@ -49,6 +45,7 @@ class FaceVerification {
   private tipArea!: HTMLDivElement;
   private resultArea!: HTMLDivElement;
   private progressIndicator!: HTMLDivElement;
+  private maxFramesInput!: HTMLInputElement;
   // private colorBackground!: HTMLDivElement;
 
   private faceDetector: FaceDetector | undefined;
@@ -121,6 +118,7 @@ class FaceVerification {
     this.tipArea = document.getElementById('tipArea') as HTMLDivElement;
     this.resultArea = document.getElementById('resultArea') as HTMLDivElement;
     this.progressIndicator = document.getElementById('progressIndicator') as HTMLDivElement;
+    this.maxFramesInput = document.getElementById('maxFramesInput') as HTMLInputElement;
     // this.colorBackground = document.getElementById('colorBackground') as HTMLDivElement;
     
     this.resizeCanvas();
@@ -171,6 +169,32 @@ class FaceVerification {
         canvasDebug.style.display = 'none';
       });
     }
+
+    // 添加设置面板切换功能
+    const settingsToggle = document.getElementById('settingsToggle') as HTMLButtonElement;
+    const settingsContent = document.getElementById('settingsContent') as HTMLDivElement;
+    
+    if (settingsToggle && settingsContent) {
+      settingsToggle.addEventListener('click', () => {
+        const isExpanded = settingsContent.classList.contains('expanded');
+        if (isExpanded) {
+          settingsContent.classList.remove('expanded');
+          settingsToggle.textContent = '⚙️ 设置';
+        } else {
+          settingsContent.classList.add('expanded');
+          settingsToggle.textContent = '⚙️ 收起设置';
+        }
+      });
+    }
+
+    // 添加最大帧数输入框验证
+    this.maxFramesInput.addEventListener('input', () => {
+      this.validateMaxFramesInput();
+    });
+
+    this.maxFramesInput.addEventListener('blur', () => {
+      this.validateMaxFramesInput();
+    });
   }
 
   private resizeCanvas(): void {
@@ -408,16 +432,42 @@ class FaceVerification {
     // this.colorBackground.style.opacity = '0';
     dazzling = false;
     
-    // 如果帧数超过60帧，均匀随机地删除多余帧
-    const maxFrames = Math.floor((unitDuration * colorList.length) / 40);
+    // 获取用户输入的最大帧数，如果无效则使用默认计算值
+    const userMaxFrames = this.getUserMaxFrames();
+    const defaultMaxFrames = Math.floor((unitDuration * colorList.length) / 40);
+    const maxFrames = userMaxFrames || defaultMaxFrames;
+    
+    console.log(`帧数处理信息:`, {
+      原始帧数: reflectFrames.length,
+      用户设置: userMaxFrames || '未设置',
+      默认计算值: defaultMaxFrames,
+      实际使用: maxFrames,
+      是否使用用户设置: !!userMaxFrames
+    });
+    
     const processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
     
     const result: ReflectDataSuccess = {
-      colorData: '1 120 3 2 3 3 1 1 ;ejEHAAMAAAAAAAAAeAAAAAAAAAD9D5BoAAAAAHYQBQAAAAAAAAAATOY1h/Ifv0by5jWH8gMAAAACAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;5864ec2c19c7136fb09a1c7f6909cf3a',
+      colorData: "1 120 3 2 3 3 0 0 ;ejEHAAMAAAAAAAAAeAAAAAAAAAAxxK5oAAAAAD1mBQAAAAAAAAAATB+/RvLmNYfyH79G8gMAAAADAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;6bb32b13e7649435844e063b24bb0b0d",
       colorList: [
-        "[0,0,0,76]", "[115,26,67,159]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
-        "[31,191,70,242]", "[31,191,70,242]", "[31,191,70,242]", "[230,53,135,242]", "[230,53,135,242]", "[230,53,135,242]",
-        "[230,53,135,242]", "[230,53,135,242]", "[115,26,67,159]", "[0,0,0,76]", "[204,204,204,17]",
+        "[0,0,0,76]",
+        "[15,95,35,159]",
+        "[31,191,70,242]",
+        "[31,191,70,242]",
+        "[31,191,70,242]",
+        "[31,191,70,242]",
+        "[230,53,135,242]",
+        "[230,53,135,242]",
+        "[230,53,135,242]",
+        "[230,53,135,242]",
+        "[55,30,200,242]",
+        "[55,30,200,242]",
+        "[55,30,200,242]",
+        "[55,30,200,242]",
+        "[55,30,200,242]",
+        "[27,15,100,159]",
+        "[0,0,0,76]",
+        "[204,204,204,17]"
       ],
       reflectFrames: processedFrames.map(frame => ({
         ...frame,
@@ -777,6 +827,51 @@ class FaceVerification {
   //   document.body.removeChild(a);
   //   URL.revokeObjectURL(url);
   // }
+
+  /**
+   * 验证最大帧数输入框的值
+   */
+  private validateMaxFramesInput(): void {
+    const inputValue = this.maxFramesInput.value.trim();
+    
+    if (!inputValue) {
+      // 空值，恢复正常样式
+      this.maxFramesInput.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+      return;
+    }
+    
+    const maxFrames = parseInt(inputValue, 10);
+    
+    if (isNaN(maxFrames) || maxFrames < 1 || maxFrames > 200) {
+      // 无效值，显示错误样式
+      this.maxFramesInput.style.borderColor = 'rgba(255, 0, 0, 0.8)';
+    } else {
+      // 有效值，显示成功样式
+      this.maxFramesInput.style.borderColor = 'rgba(0, 255, 0, 0.5)';
+    }
+  }
+
+  /**
+   * 获取用户输入的最大帧数，如果输入无效则返回null
+   * @returns 有效的最大帧数或null
+   */
+  private getUserMaxFrames(): number | null {
+    const inputValue = this.maxFramesInput.value.trim();
+    
+    if (!inputValue) {
+      return null;
+    }
+    
+    const maxFrames = parseInt(inputValue, 10);
+    
+    // 验证输入是否为有效的正整数，且在合理范围内
+    if (isNaN(maxFrames) || maxFrames < 1 || maxFrames > 200) {
+      console.warn('无效的最大帧数输入:', inputValue, '，将使用默认计算值');
+      return null;
+    }
+    
+    return maxFrames;
+  }
 
   /**
    * 均匀随机采样帧，保持原始时间顺序，确保无重复
