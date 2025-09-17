@@ -31,6 +31,12 @@ interface ReflectFrame {
   readonly time: number;
   readonly x: number;
   readonly y: number;
+  readonly faceArea: { 
+    minX: number; 
+    minY: number; 
+    maxX: number; 
+    maxY: number; 
+  };
 }
 
 const videoSize = { width: 480, height: 640 };
@@ -364,7 +370,7 @@ class FaceVerification {
     let dazzling = true;
     this.onFrame = (frame) => {
       if (dazzling && typeof frame === 'object') {
-        const { base64, uncroppedBase64, mouthCenter } = this.capturePhoto(frame);
+        const { base64, uncroppedBase64, mouthCenter, faceArea } = this.capturePhoto(frame);
           // 将脸部图片转换为base64并添加到结果中
           reflectFrames.push({
             frame: base64.split(',')[1],
@@ -372,6 +378,7 @@ class FaceVerification {
             time: Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`),
             x: mouthCenter!.x,
             y: mouthCenter!.y,
+            faceArea: faceArea,
           });
       }
       onFrame(frame, `${index}/${colorList.length}`);
