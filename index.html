@@ -49,6 +49,88 @@
       gap: 20px;
     }
 
+    /* 设置区域 */
+    .settings-area {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 10px 20px;
+      width: 100%;
+      max-width: 300px;
+      margin-bottom: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .settings-toggle {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 5px 0;
+      width: 100%;
+      text-align: center;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+    }
+
+    .settings-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .settings-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .settings-content.expanded {
+      max-height: 200px;
+      padding-top: 10px;
+    }
+
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .setting-item label {
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .setting-item input[type="number"] {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: white;
+      font-size: 14px;
+      text-align: center;
+      width: 120px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .setting-item input[type="number"]:focus {
+      border-color: rgba(0, 255, 0, 0.5);
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+    }
+
+    .setting-item input[type="number"]::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .setting-hint {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      font-style: italic;
+    }
+
     /* 提示区域 */
     .tip-area {
       background: rgba(255, 255, 255, 0.1);
@@ -156,6 +238,25 @@
       .container {
         padding: 15px;
         gap: 15px;
+      }
+
+      .settings-area {
+        padding: 12px 16px;
+        margin-bottom: 8px;
+      }
+
+      .setting-item input[type="number"] {
+        width: 100px;
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+
+      .setting-item label {
+        font-size: 12px;
+      }
+
+      .setting-hint {
+        font-size: 10px;
       }
 
       .preview-container {
@@ -410,7 +511,7 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="/mediapipe_demo/assets/index-e6003381.js"></script>
+  <script type="module" crossorigin src="/mediapipe_demo/assets/index-288ae50c.js"></script>
 </head>
 <body>
   <!-- 炫彩背景 -->
@@ -456,6 +557,18 @@
   </div>
 
   <div class="container">
+    <!-- 设置区域 -->
+    <div class="settings-area" id="settingsArea">
+      <button class="settings-toggle" id="settingsToggle">⚙️ 设置</button>
+      <div class="settings-content" id="settingsContent">
+        <div class="setting-item">
+          <label for="maxFramesInput">最大帧数：</label>
+          <input type="number" id="maxFramesInput" min="1" max="200" value="51" placeholder="请输入最大帧数">
+          <span class="setting-hint">（默认：51帧）</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 提示区域 -->
     <div class="tip-area" id="tipArea">
       请将脸部对准圆形取景器
