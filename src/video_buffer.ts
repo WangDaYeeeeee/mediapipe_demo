@@ -291,7 +291,6 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
     if (!video.videoWidth || !video.videoHeight) {
       throw new Error('视频尺寸无效，无法截取图片');
     }
-    const startTime = Date.now();
 
     // 创建临时canvas来捕获当前帧
     const canvas = document.createElement('canvas');
