@@ -1,5 +1,5 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
-import { VideoFrameBuffer } from "./video_buffer";
+import { VideoFrameBuffer, VideoResult } from "./video_buffer";
 import { showNotification } from "./notification";
 
 // 页面加载完成后初始化应用
@@ -11,7 +11,7 @@ interface UIState {
   readonly tipMessage?: string;
 }
 
-type VerificationStep = 'preparing' | 'error' | 'detecting_blink' | 'detecting_mouth_open' | 'dazzling' | 'done';
+type VerificationStep = 'preparing' | 'error' | 'detecting_action_1' | 'detecting_action_2' | 'dazzling' | 'done';
 
 type OnFrame = (frame: string | SingleFaceLandmarkerResult) => void;
 
@@ -36,6 +36,29 @@ interface ReflectFrame {
 }
 
 const videoSize = { width: 480, height: 640 };
+
+enum FaceAction {
+  NOD_HEAD = 'nod_head', // 点头
+  SHAKE_HEAD = 'shake_head', // 摇头
+  BLINK = 'blink', // 眨眼
+  OPEN_MOUTH = 'open_mouth', // 张嘴
+  TURN_LEFT = 'turn_left', // 缓慢向左转头
+  TURN_RIGHT = 'turn_right', // 缓慢向右转头
+  FAR_TO_CLOSE = 'far_to_close', // 离近一点
+  CLOSE_TO_FAR = 'close_to_far', // 离远一点
+  NONE = 'none', // 无动作
+}
+
+const ACTION_MAP: Record<number, { action: FaceAction, name: string }> = {
+  1: { action: FaceAction.BLINK, name: '眨眨眼' },
+  2: { action: FaceAction.OPEN_MOUTH, name: '张张嘴' },
+  3: { action: FaceAction.NOD_HEAD, name: '点点头' },
+  4: { action: FaceAction.SHAKE_HEAD, name: '摇摇头' },
+  5: { action: FaceAction.TURN_LEFT, name: '缓慢向左转头' },
+  6: { action: FaceAction.TURN_RIGHT, name: '缓慢向右转头' },
+  7: { action: FaceAction.FAR_TO_CLOSE, name: '离近一点' },
+  8: { action: FaceAction.CLOSE_TO_FAR, name: '离远一点' },
+};
 
 class FaceVerification {
   private video!: HTMLVideoElement;
@@ -68,12 +91,12 @@ class FaceVerification {
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'none';
         break;
-      case 'detecting_blink':
+      case 'detecting_action_1':
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'flex';
         this.updateProgress(0);
         break;
-      case 'detecting_mouth_open':
+      case 'detecting_action_2':
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'flex';
         this.updateProgress(1);
@@ -260,32 +283,49 @@ class FaceVerification {
     }
 
     // 启动检测流程
-    this.updateUI('detecting_blink', { tipMessage: '请正对取景器' });
+    this.updateUI('detecting_action_1', { tipMessage: '请正对取景器' });
     this.predictWebcam();
 
-    // 眨眼检测
-    await this.detectBlink((frame, done) => {
-      if (typeof frame === 'string') {
-        this.updateUI('detecting_blink', { tipMessage: frame });
-      } else if (!done) {
-        this.updateUI('detecting_blink', { tipMessage: '请眨眼' });
-      } else {
-        this.updateUI('detecting_blink', { tipMessage: '✅ 已捕获眨眼瞬间，请稍等' });
-      }
-    });
-    // this.downloadFile(blinkBlob, 'action_1.mp4');
+    // 动作检测
+    const actionIdList = [1, 2]; // 动作检测序列，写死
+    const actionStepMap: Record<number, VerificationStep> = {
+      1: 'detecting_action_1',
+      2: 'detecting_action_2',
+    };
+    const capturedVideos: Record<number, Promise<string>> = {};
+    for (const actionId of actionIdList) {
+      const actionName = ACTION_MAP[actionId]?.name;
+      this.updateUI(actionStepMap[actionId], { tipMessage: `请${actionName}` });
 
-    // 张嘴检测
-    await this.detectMouthOpen((frame, done) => {
-      if (typeof frame === 'string') {
-        this.updateUI('detecting_mouth_open', { tipMessage: frame });
-      } else if (!done) {
-        this.updateUI('detecting_mouth_open', { tipMessage: '请张大嘴巴' });
-      } else {
-        this.updateUI('detecting_mouth_open', { tipMessage: '✅ 已捕获张嘴瞬间，请稍等' });
-      }
-    });
-    // this.downloadFile(mouthOpenBlob, 'action_2.mp4');
+      const actionResult = await this.detectAction(actionId, (frame, done) => {
+        if (typeof frame === 'string') {
+          console.log(`${actionName}检测`, frame);
+        } else if (!done) {
+          Math.random() > 0.1 && console.log(`${actionName}检测`);
+        } else {
+          console.log(`${actionName}检测`, `已捕获${actionName}瞬间，立即进入下一个动作`);
+        }
+      });
+
+      // 动作检测完成，立即进入下一个动作，视频处理异步进行
+      const videoPromise = actionResult.videoPromise;
+      capturedVideos[actionId] = new Promise(async (resolve, reject) => {
+        const blob = (await videoPromise).blob;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            let base64 = reader.result as string;
+            base64 = base64.split(',')[1];
+            resolve(base64);
+          } else {
+            reject(new Error('Failed to convert blob to base64'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
 
     // 活体检测（炫彩）
     const reflectDataSuccess = await this.dazzle((frame, progress) => {
@@ -296,8 +336,14 @@ class FaceVerification {
         this.updateUI('dazzling', { tipMessage: `请保持不动 (${progress})` });
       }
     });
-    console.log('reflectDataSuccess', reflectDataSuccess);
     showNotification('📷 采集完成', 'success');
+
+    for (const actionId of actionIdList) {
+      const actionName = ACTION_MAP[actionId]?.name;
+      const base64 = await capturedVideos[actionId];
+      console.log(`${actionName}视频处理完成`, base64);
+    }
+    console.log('reflectDataSuccess', reflectDataSuccess);
     
     // 尝试复制到剪切板
     await this.copyToClipboard(reflectDataSuccess);
@@ -331,46 +377,55 @@ class FaceVerification {
     });
   }
 
-  private async detectBlink(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<void> {
-    let blinkDetected = false;
+  private async detectAction(
+    actionId: number, 
+    onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void
+  ): Promise<{
+    detected: boolean;
+    videoPromise: Promise<VideoResult>;
+  }> {
+    let actionDetected = false;
+    let totalFramesAfterDetection = 0; // 检测到后的帧计数
+    const continueFrames = 10; // 检测到动作后继续采集10帧（约0.3秒@30fps）
+    let resolved = false;
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
-        try {          
+        try {
+          if (resolved) {
+            return;
+          }
           if (typeof frame === 'string') {
             // do nothing.
-          } else if (!blinkDetected) {
-            blinkDetected = this.faceDetector!.detectBlink(frame);
-            if (blinkDetected) {
-              // 检测到眨眼，生成视频
-              // const promise = this.videoBuffer.getFrames();
-              resolve(new Promise((resolve) => setTimeout(resolve, 1000)));
+          } else if (!actionDetected) {
+            switch (actionId) {
+              case 1:
+                actionDetected = this.faceDetector!.detectBlink(frame);
+                break;
+              case 2:
+                actionDetected = this.faceDetector!.detectMouthOpen(frame);
+                break;            
+              default:
+                console.error('不支持的动作id:', actionId);
+                break;
             }
-          }
-        } finally {
-          onFrame(frame, blinkDetected);
-        }
-      };
-    });
-  }
+          } else {
+            // 已经检测到动作，继续采集几帧
+            totalFramesAfterDetection++;
 
-  private async detectMouthOpen(onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void): Promise<void> {
-    let mouthOpenDetected = false;
-    return new Promise((resolve, _) => {
-      this.onFrame = (frame) => {
-        try {          
-          if (typeof frame === 'string') {
-            // do nothing.
-          } else if (!mouthOpenDetected) {
-            mouthOpenDetected = this.faceDetector!.detectMouthOpen(frame);
-            if (mouthOpenDetected) {
-              // 检测到张嘴，生成视频
-              // const promise = this.videoBuffer.getFrames();
-              resolve(new Promise((resolve) => setTimeout(resolve, 1000)));
+            // 采集够足够的帧后，获取视频
+            if (totalFramesAfterDetection >= continueFrames) {
+              resolved = true;
+              onFrame(frame, true);
+              const videoPromise = this.videoBuffer.getFrames();
+              // 立即清空缓冲区，为下一个动作做准备
+              this.videoBuffer.clear();
+              resolve({
+                detected: true,
+                videoPromise: videoPromise
+              });
             }
           }
-        } finally {
-          onFrame(frame, mouthOpenDetected);
-        }
+        } catch (error) { }
       };
     });
   }

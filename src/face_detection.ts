@@ -225,14 +225,17 @@ export class FaceDetector {
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
     const leftEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkLeft') ?? 0;
     const rightEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkRight') ?? 0;
-    const blinkThreshold = 0.6;
-    return leftEyeBlinkScore > blinkThreshold && rightEyeBlinkScore > blinkThreshold
+    return leftEyeBlinkScore > 0.35 && rightEyeBlinkScore > 0.35;
   }
 
   public detectMouthOpen(singleResult: SingleFaceLandmarkerResult): boolean {
     const mouthOpenScroe = singleResult.faceBlendshapes.get('jawOpen') ?? 0;
-    const mouthOpenThreshold = 0.6;
-    return mouthOpenScroe > mouthOpenThreshold;
+    return mouthOpenScroe > 0.4;
+  }
+
+  public detectMouthClose(singleResult: SingleFaceLandmarkerResult): boolean {
+    const jawOpen = singleResult.faceBlendshapes.get('jawOpen') ?? 0;
+    return jawOpen < 0.1
   }
 
   public detectFaceArea(singleResult: SingleFaceLandmarkerResult): { 
