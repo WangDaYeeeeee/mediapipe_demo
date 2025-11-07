@@ -361,24 +361,47 @@ class FaceVerification {
     // 对每一帧进行深度建模
     const framesCount = reflectDataSuccess.reflectFrames.length;
     const totalProgress = framesCount * 2;
-    for (let i = 0; i < reflectDataSuccess.reflectFrames.length; i ++) {
+    for (let i = 0, retry = 0; i < reflectDataSuccess.reflectFrames.length;) {
       const currentProgress = (i / totalProgress * 100).toFixed(1);
       this.updateUI('validating', { tipMessage: `正在进行深度建模 [${currentProgress}%]` });
 
       const reflectFrame = reflectDataSuccess.reflectFrames[i];
-      const davidProcessResult = await requestDAViD(reflectFrame.uncroppedFrame);
-      reflectDataSuccess.reflectFrames[i] = { ...reflectFrame, davidProcessResult };
+      try {
+        const davidProcessResult = await requestDAViD(reflectFrame.uncroppedFrame);
+        reflectDataSuccess.reflectFrames[i] = { ...reflectFrame, davidProcessResult };
+        i ++;
+      } catch (error) {
+        console.error('深度建模失败', error);
+        if (retry >= 3) {
+          showNotification('🩻 深度建模失败!!!', 'error');
+          throw error;
+        }
+        retry ++;
+        showNotification('🩻 深度建模失败，发起重试', 'error');
+      }
     }
 
     // 对每一帧进行重打光
     const colors = parseColorList(reflectDataSuccess.colorList);
-    for (let i = 0; i < reflectDataSuccess.reflectFrames.length; i ++) {
+    for (let i = 0, retry = 0; i < reflectDataSuccess.reflectFrames.length;) {
       const currentProgress = ((i + framesCount) / totalProgress * 100).toFixed(1);
       this.updateUI('validating', { tipMessage: `正在进行重打光处理 [${currentProgress}%]` });
+
       const reflectFrame = reflectDataSuccess.reflectFrames[i];
-      const color = calculateLightColor(i, framesCount, colors);
-      const relightedFrame = (await requestRelighting(reflectFrame, color)).data;
-      reflectDataSuccess.reflectFrames[i] = { ...reflectFrame, frame: relightedFrame.frame };
+      try {
+        const color = calculateLightColor(i, framesCount, colors);
+        const relightedFrame = (await requestRelighting(reflectFrame, color)).data;
+        reflectDataSuccess.reflectFrames[i] = { ...reflectFrame, frame: relightedFrame.frame };
+        i ++;
+      } catch (error) {
+        console.error('重打光失败', error);
+        if (retry >= 3) {
+          showNotification('💡 重打光失败!!!', 'error');
+          throw error;
+        }
+        retry ++;
+        showNotification('💡 重打光失败，发起重试', 'error');
+      }
     }
     
     // 处理完成
