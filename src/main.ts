@@ -21,7 +21,7 @@ interface ReflectDataSuccess {
   reflectFrames: ReflectFrame[];
 }
 
-interface ReflectFrame {
+export interface ReflectFrame {
   readonly frame: string;
   readonly uncroppedFrame: string;
   readonly time: number;
