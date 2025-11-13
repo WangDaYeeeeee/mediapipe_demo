@@ -1,8 +1,6 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
 import { VideoFrameBuffer, VideoResult } from "./video_buffer";
 import { showNotification } from "./notification";
-import { DAViDResponse, requestDAViD, requestRelighting } from "./api_service";
-import { calculateLightColor, parseColorList } from "./color_utils";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,7 +11,7 @@ interface UIState {
   readonly tipMessage?: string;
 }
 
-type VerificationStep = 'preparing' | 'error' | 'detecting_action_1' | 'detecting_action_2' | 'dazzling' | 'validating' | 'done';
+type VerificationStep = 'preparing' | 'error' | 'detecting_action_1' | 'detecting_action_2' | 'dazzling' | 'done';
 
 type OnFrame = (frame: string | SingleFaceLandmarkerResult) => void;
 
@@ -23,7 +21,7 @@ interface ReflectDataSuccess {
   reflectFrames: ReflectFrame[];
 }
 
-export interface ReflectFrame {
+interface ReflectFrame {
   readonly frame: string;
   readonly uncroppedFrame: string;
   readonly time: number;
@@ -35,7 +33,6 @@ export interface ReflectFrame {
     maxX: number; 
     maxY: number; 
   };
-  readonly davidProcessResult?: DAViDResponse;
 }
 
 const videoSize = { width: 480, height: 640 };
@@ -108,11 +105,6 @@ class FaceVerification {
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'flex';
         this.updateProgress(2);
-        break;
-      case "validating":
-        this.restartBtn.disabled = true;
-        this.progressIndicator.style.display = 'flex';
-        this.updateProgress(3);
         break;
       case 'done':
         this.restartBtn.disabled = false;
@@ -339,73 +331,37 @@ class FaceVerification {
     const reflectDataSuccess = await this.dazzle((frame, progress) => {
       console.log('dazzle-frame', frame);
       if (typeof frame === 'string') {
-        this.updateUI('dazzling', { tipMessage: `${frame} [${progress}]` });
+        this.updateUI('dazzling', { tipMessage: `${frame} (${progress})` });
       } else {
-        this.updateUI('dazzling', { tipMessage: `请保持不动 [${progress}]` });
+        this.updateUI('dazzling', { tipMessage: `请保持不动 (${progress})` });
       }
     });
     showNotification('📷 采集完成', 'success');
 
+    const actions: { actionId: number, base64: string }[] =[];
     for (const actionId of actionIdList) {
       const actionName = ACTION_MAP[actionId]?.name;
       const base64 = await capturedVideos[actionId];
+      actions.push({ actionId, base64 });
       console.log(`${actionName}视频处理完成`, base64);
     }
     console.log('reflectDataSuccess', reflectDataSuccess);
     
+    // 尝试复制到剪切板
+    await this.copyToClipboard({ reflectDataSuccess, actions });
+    
+    // 检查是否成功复制到剪切板
+    const clipboardSuccess = !(window as any).lastVerificationResult;
+    const tipMessage = clipboardSuccess 
+      ? '核验完成，结果已复制到剪切板' 
+      : '核验完成，结果已存储到控制台，请手动复制';
+    
+    this.updateUI('done', { tipMessage });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();
-    
-    // 验证核验是否成功
-    // 对每一帧进行深度建模
-    const framesCount = reflectDataSuccess.reflectFrames.length;
-    const totalProgress = framesCount * 2;
-    for (let i = 0, retry = 0; i < reflectDataSuccess.reflectFrames.length;) {
-      const currentProgress = (i / totalProgress * 100).toFixed(1);
-      this.updateUI('validating', { tipMessage: `正在进行深度建模 [${currentProgress}%]` });
-
-      const reflectFrame = reflectDataSuccess.reflectFrames[i];
-      try {
-        const davidProcessResult = await requestDAViD(reflectFrame.uncroppedFrame);
-        reflectDataSuccess.reflectFrames[i] = { ...reflectFrame, davidProcessResult };
-        i ++;
-      } catch (error) {
-        console.error('深度建模失败', error);
-        if (retry >= 3) {
-          showNotification('🩻 深度建模失败!!!', 'error');
-          throw error;
-        }
-        retry ++;
-        showNotification('🩻 深度建模失败，发起重试', 'error');
-      }
-    }
-
-    // 对每一帧进行重打光
-    const colors = parseColorList(reflectDataSuccess.colorList);
-    for (let i = 0, retry = 0; i < reflectDataSuccess.reflectFrames.length;) {
-      const currentProgress = ((i + framesCount) / totalProgress * 100).toFixed(1);
-      this.updateUI('validating', { tipMessage: `正在进行重打光处理 [${currentProgress}%]` });
-
-      const reflectFrame = reflectDataSuccess.reflectFrames[i];
-      try {
-        const color = calculateLightColor(i, framesCount, colors);
-        const relightedFrame = (await requestRelighting(reflectFrame, color)).data;
-        reflectDataSuccess.reflectFrames[i] = { ...reflectFrame, frame: relightedFrame.frame };
-        i ++;
-      } catch (error) {
-        console.error('重打光失败', error);
-        if (retry >= 3) {
-          showNotification('💡 重打光失败!!!', 'error');
-          throw error;
-        }
-        retry ++;
-        showNotification('💡 重打光失败，发起重试', 'error');
-      }
-    }
-    
-    // 处理完成
-    this.updateUI('done', { tipMessage: '验证处理完成' });
+    // 显示结果
+    this.showResult();
   }
 
   private async startCamera(): Promise<void> {
@@ -506,8 +462,7 @@ class FaceVerification {
             faceArea: faceArea,
           });
       }
-      const progress = (index / colorList.length * 100).toFixed(1);
-      onFrame(frame, `${progress}%`);
+      onFrame(frame, `${index}/${colorList.length}`);
     };
     for (const _ of colorList) {
       index += 1;
@@ -852,7 +807,7 @@ class FaceVerification {
   }
 
   // 复制结果到剪切板
-  private async copyToClipboard(data: ReflectDataSuccess): Promise<void> {
+  private async copyToClipboard(data: object): Promise<void> {
     try {
       // 将数据转换为JSON字符串
       const jsonString = JSON.stringify(data, null, 2);
