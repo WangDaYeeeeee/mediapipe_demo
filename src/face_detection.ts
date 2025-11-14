@@ -225,7 +225,7 @@ export class FaceDetector {
   public detectBlink(singleResult: SingleFaceLandmarkerResult): boolean {
     const leftEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkLeft') ?? 0;
     const rightEyeBlinkScore = singleResult.faceBlendshapes.get('eyeBlinkRight') ?? 0;
-    return leftEyeBlinkScore > 0.35 && rightEyeBlinkScore > 0.35;
+    return leftEyeBlinkScore > 0.5 && rightEyeBlinkScore > 0.5;
   }
 
   public detectMouthOpen(singleResult: SingleFaceLandmarkerResult): boolean {
