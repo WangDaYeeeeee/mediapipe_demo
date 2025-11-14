@@ -328,7 +328,9 @@ class FaceVerification {
     }
 
     this.updateUI('dazzling', { tipMessage: '2秒后开始炫彩采集' });
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    this.updateUI('dazzling', { tipMessage: '1秒后开始炫彩采集' });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // 活体检测（炫彩）
     const reflectDataSuccess = await this.dazzle((frame, progress) => {
