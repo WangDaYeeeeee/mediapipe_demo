@@ -1,4 +1,4 @@
-declare module 'ali-oss/dist/ali-oss.esm.js' {
+declare module 'ali-oss' {
   const OSS: any;
   export default OSS;
 }
