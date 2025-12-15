@@ -1,5 +1,5 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
-import { getVideoResult, processVideoAsync, VideoFrameBuffer, VideoResult } from "./video_buffer";
+import { VideoFrameBuffer, VideoResult } from "./video_buffer";
 import { showNotification } from "./notification";
 
 // 页面加载完成后初始化应用
@@ -445,108 +445,108 @@ class FaceVerification {
     });
   }
 
-  private async dazzle(
-    onFrame: (frame: string | SingleFaceLandmarkerResult, progress: string) => void
-  ): Promise<ReflectDataSuccess> {
-    const reflectFrames: ReflectFrame[] = [];
-    const unitDuration = 120;
-    const colorList = [
-      [0, 0, 0, 76], 
-      [115, 26, 67, 159],
-      [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
-      [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
-      [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
-      [115, 26, 67, 159],
-      [0, 0, 0, 76],
-      [204, 204, 204, 17],
-    ];
-    let index = 0;
-    let dazzling = true;
-    this.onFrame = (frame) => {
-      if (dazzling && typeof frame === 'object') {
-        const { base64, uncroppedBase64, mouthCenter, faceArea } = this.capturePhoto(frame);
-          // 将脸部图片转换为base64并添加到结果中
-          reflectFrames.push({
-            frame: base64.split(',')[1],
-            uncroppedFrame: uncroppedBase64.split(',')[1],
-            time: Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`),
-            x: mouthCenter!.x,
-            y: mouthCenter!.y,
-            faceArea: faceArea,
-          });
-      }
-      onFrame(frame, `${index}/${colorList.length}`);
-    };
-    for (const _ of colorList) {
-      index += 1;
-      // const [r, g, b, a] = color;
-      // // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
-      // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-      // this.colorBackground.style.opacity = '1';
-      // await new Promise((resolve) => setTimeout(resolve, 100));
+  // private async dazzle(
+  //   onFrame: (frame: string | SingleFaceLandmarkerResult, progress: string) => void
+  // ): Promise<ReflectDataSuccess> {
+  //   const reflectFrames: ReflectFrame[] = [];
+  //   const unitDuration = 120;
+  //   const colorList = [
+  //     [0, 0, 0, 76], 
+  //     [115, 26, 67, 159],
+  //     [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
+  //     [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
+  //     [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
+  //     [115, 26, 67, 159],
+  //     [0, 0, 0, 76],
+  //     [204, 204, 204, 17],
+  //   ];
+  //   let index = 0;
+  //   let dazzling = true;
+  //   this.onFrame = (frame) => {
+  //     if (dazzling && typeof frame === 'object') {
+  //       const { base64, uncroppedBase64, mouthCenter, faceArea } = this.capturePhoto(frame);
+  //         // 将脸部图片转换为base64并添加到结果中
+  //         reflectFrames.push({
+  //           frame: base64.split(',')[1],
+  //           uncroppedFrame: uncroppedBase64.split(',')[1],
+  //           time: Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`),
+  //           x: mouthCenter!.x,
+  //           y: mouthCenter!.y,
+  //           faceArea: faceArea,
+  //         });
+  //     }
+  //     onFrame(frame, `${index}/${colorList.length}`);
+  //   };
+  //   for (const _ of colorList) {
+  //     index += 1;
+  //     // const [r, g, b, a] = color;
+  //     // // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
+  //     // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+  //     // this.colorBackground.style.opacity = '1';
+  //     // await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // 使用requestAnimationFrame和performance.now()保证时间精准
-      const startTime = performance.now();
-      await new Promise<void>((resolve) => {
-        function checkTime() {
-          if (performance.now() - startTime >= unitDuration) {
-            resolve();
-          } else {
-            requestAnimationFrame(checkTime);
-          }
-        }
-        requestAnimationFrame(checkTime);
-      });
-    }
-    // this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
-    // this.colorBackground.style.opacity = '0';
-    dazzling = false;
+  //     // 使用requestAnimationFrame和performance.now()保证时间精准
+  //     const startTime = performance.now();
+  //     await new Promise<void>((resolve) => {
+  //       function checkTime() {
+  //         if (performance.now() - startTime >= unitDuration) {
+  //           resolve();
+  //         } else {
+  //           requestAnimationFrame(checkTime);
+  //         }
+  //       }
+  //       requestAnimationFrame(checkTime);
+  //     });
+  //   }
+  //   // this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
+  //   // this.colorBackground.style.opacity = '0';
+  //   dazzling = false;
     
-    // 获取用户输入的最大帧数，如果无效则使用默认计算值
-    const userMaxFrames = this.getUserMaxFrames();
-    const defaultMaxFrames = Math.floor((unitDuration * colorList.length) / 40);
-    const maxFrames = userMaxFrames || defaultMaxFrames;
+  //   // 获取用户输入的最大帧数，如果无效则使用默认计算值
+  //   const userMaxFrames = this.getUserMaxFrames();
+  //   const defaultMaxFrames = Math.floor((unitDuration * colorList.length) / 40);
+  //   const maxFrames = userMaxFrames || defaultMaxFrames;
     
-    console.log(`帧数处理信息:`, {
-      原始帧数: reflectFrames.length,
-      用户设置: userMaxFrames || '未设置',
-      默认计算值: defaultMaxFrames,
-      实际使用: maxFrames,
-      是否使用用户设置: !!userMaxFrames
-    });
+  //   console.log(`帧数处理信息:`, {
+  //     原始帧数: reflectFrames.length,
+  //     用户设置: userMaxFrames || '未设置',
+  //     默认计算值: defaultMaxFrames,
+  //     实际使用: maxFrames,
+  //     是否使用用户设置: !!userMaxFrames
+  //   });
     
-    const processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
+  //   const processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
     
-    const result: ReflectDataSuccess = {
-      colorData: "1 120 3 2 3 3 0 0 ;ejEHAAMAAAAAAAAAeAAAAAAAAAAxxK5oAAAAAD1mBQAAAAAAAAAATB+/RvLmNYfyH79G8gMAAAADAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;6bb32b13e7649435844e063b24bb0b0d",
-      colorList: [
-        "[0,0,0,76]",
-        "[15,95,35,159]",
-        "[31,191,70,242]",
-        "[31,191,70,242]",
-        "[31,191,70,242]",
-        "[31,191,70,242]",
-        "[230,53,135,242]",
-        "[230,53,135,242]",
-        "[230,53,135,242]",
-        "[230,53,135,242]",
-        "[55,30,200,242]",
-        "[55,30,200,242]",
-        "[55,30,200,242]",
-        "[55,30,200,242]",
-        "[55,30,200,242]",
-        "[27,15,100,159]",
-        "[0,0,0,76]",
-        "[204,204,204,17]"
-      ],
-      reflectFrames: processedFrames.map(frame => ({
-        ...frame,
-        x: Math.round(frame.x),
-        y: Math.round(frame.y),
-      })),
-    };
-    return result;
-  }
+  //   const result: ReflectDataSuccess = {
+  //     colorData: "1 120 3 2 3 3 0 0 ;ejEHAAMAAAAAAAAAeAAAAAAAAAAxxK5oAAAAAD1mBQAAAAAAAAAATB+/RvLmNYfyH79G8gMAAAADAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;6bb32b13e7649435844e063b24bb0b0d",
+  //     colorList: [
+  //       "[0,0,0,76]",
+  //       "[15,95,35,159]",
+  //       "[31,191,70,242]",
+  //       "[31,191,70,242]",
+  //       "[31,191,70,242]",
+  //       "[31,191,70,242]",
+  //       "[230,53,135,242]",
+  //       "[230,53,135,242]",
+  //       "[230,53,135,242]",
+  //       "[230,53,135,242]",
+  //       "[55,30,200,242]",
+  //       "[55,30,200,242]",
+  //       "[55,30,200,242]",
+  //       "[55,30,200,242]",
+  //       "[55,30,200,242]",
+  //       "[27,15,100,159]",
+  //       "[0,0,0,76]",
+  //       "[204,204,204,17]"
+  //     ],
+  //     reflectFrames: processedFrames.map(frame => ({
+  //       ...frame,
+  //       x: Math.round(frame.x),
+  //       y: Math.round(frame.y),
+  //     })),
+  //   };
+  //   return result;
+  // }
 
   private updateDebugInfo(result: FaceDetectionResult) {
     const faceAreaEl = document.getElementById('faceArea');
@@ -820,52 +820,52 @@ class FaceVerification {
   }
 
   // 复制结果到剪切板
-  private async copyToClipboard(data: object): Promise<void> {
-    try {
-      // 将数据转换为JSON字符串
-      const jsonString = JSON.stringify(data, null, 2);
+  // private async copyToClipboard(data: object): Promise<void> {
+  //   try {
+  //     // 将数据转换为JSON字符串
+  //     const jsonString = JSON.stringify(data, null, 2);
       
-      // 使用现代Clipboard API
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(jsonString);
-          console.log('结果已复制到剪切板');
-          return;
-        } catch (clipboardError) {
-          console.warn('Clipboard API 失败，尝试降级方案:', clipboardError);
-          // 如果 Clipboard API 失败，继续使用降级方案
-        }
-      }
+  //     // 使用现代Clipboard API
+  //     if (navigator.clipboard && window.isSecureContext) {
+  //       try {
+  //         await navigator.clipboard.writeText(jsonString);
+  //         console.log('结果已复制到剪切板');
+  //         return;
+  //       } catch (clipboardError) {
+  //         console.warn('Clipboard API 失败，尝试降级方案:', clipboardError);
+  //         // 如果 Clipboard API 失败，继续使用降级方案
+  //       }
+  //     }
       
-      // 降级方案：使用传统的document.execCommand
-      const textArea = document.createElement('textarea');
-      textArea.value = jsonString;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
+  //     // 降级方案：使用传统的document.execCommand
+  //     const textArea = document.createElement('textarea');
+  //     textArea.value = jsonString;
+  //     textArea.style.position = 'fixed';
+  //     textArea.style.left = '-999999px';
+  //     textArea.style.top = '-999999px';
+  //     document.body.appendChild(textArea);
+  //     textArea.focus();
+  //     textArea.select();
       
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
+  //     const successful = document.execCommand('copy');
+  //     document.body.removeChild(textArea);
       
-      if (successful) {
-        console.log('结果已复制到剪切板');
-      } else {
-        console.error('复制到剪切板失败');
-        // 如果都失败了，将数据存储到全局变量，供用户手动复制
-        (window as any).lastVerificationResult = jsonString;
-        console.log('结果已存储到 window.lastVerificationResult，请手动复制');
-      }
-    } catch (error) {
-      console.error('复制到剪切板时发生错误:', error);
-      // 将数据存储到全局变量，供用户手动复制
-      const jsonString = JSON.stringify(data, null, 2);
-      (window as any).lastVerificationResult = jsonString;
-      console.log('结果已存储到 window.lastVerificationResult，请手动复制');
-    }
-  }
+  //     if (successful) {
+  //       console.log('结果已复制到剪切板');
+  //     } else {
+  //       console.error('复制到剪切板失败');
+  //       // 如果都失败了，将数据存储到全局变量，供用户手动复制
+  //       (window as any).lastVerificationResult = jsonString;
+  //       console.log('结果已存储到 window.lastVerificationResult，请手动复制');
+  //     }
+  //   } catch (error) {
+  //     console.error('复制到剪切板时发生错误:', error);
+  //     // 将数据存储到全局变量，供用户手动复制
+  //     const jsonString = JSON.stringify(data, null, 2);
+  //     (window as any).lastVerificationResult = jsonString;
+  //     console.log('结果已存储到 window.lastVerificationResult，请手动复制');
+  //   }
+  // }
 
   // 手动复制结果（用户点击按钮触发）
   private async manualCopyResult(): Promise<void> {
@@ -925,23 +925,23 @@ class FaceVerification {
    * 获取用户输入的最大帧数，如果输入无效则返回null
    * @returns 有效的最大帧数或null
    */
-  private getUserMaxFrames(): number | null {
-    const inputValue = this.maxFramesInput.value.trim();
+  // private getUserMaxFrames(): number | null {
+  //   const inputValue = this.maxFramesInput.value.trim();
     
-    if (!inputValue) {
-      return null;
-    }
+  //   if (!inputValue) {
+  //     return null;
+  //   }
     
-    const maxFrames = parseInt(inputValue, 10);
+  //   const maxFrames = parseInt(inputValue, 10);
     
-    // 验证输入是否为有效的正整数，且在合理范围内
-    if (isNaN(maxFrames) || maxFrames < 1 || maxFrames > 200) {
-      console.warn('无效的最大帧数输入:', inputValue, '，将使用默认计算值');
-      return null;
-    }
+  //   // 验证输入是否为有效的正整数，且在合理范围内
+  //   if (isNaN(maxFrames) || maxFrames < 1 || maxFrames > 200) {
+  //     console.warn('无效的最大帧数输入:', inputValue, '，将使用默认计算值');
+  //     return null;
+  //   }
     
-    return maxFrames;
-  }
+  //   return maxFrames;
+  // }
 
   /**
    * 均匀随机采样帧，保持原始时间顺序，确保无重复
@@ -949,23 +949,23 @@ class FaceVerification {
    * @param targetCount 目标帧数
    * @returns 采样后的帧数组
    */
-  private uniformlySampleFrames(frames: ReflectFrame[], targetCount: number): ReflectFrame[] {
-    // 如果目标数量大于等于帧数，直接返回所有帧
-    if (targetCount >= frames.length) {
-      return frames;
-    }
+  // private uniformlySampleFrames(frames: ReflectFrame[], targetCount: number): ReflectFrame[] {
+  //   // 如果目标数量大于等于帧数，直接返回所有帧
+  //   if (targetCount >= frames.length) {
+  //     return frames;
+  //   }
 
-    const result: ReflectFrame[] = [];
-    const step = frames.length / targetCount;
+  //   const result: ReflectFrame[] = [];
+  //   const step = frames.length / targetCount;
 
-    // 均匀采样
-    for (let i = 0; i < targetCount; i++) {
-      const index = Math.floor(i * step);
-      if (frames[index]) {
-        result.push(frames[index]);
-      }
-    }
+  //   // 均匀采样
+  //   for (let i = 0; i < targetCount; i++) {
+  //     const index = Math.floor(i * step);
+  //     if (frames[index]) {
+  //       result.push(frames[index]);
+  //     }
+  //   }
 
-    return result;
-  }
+  //   return result;
+  // }
 }
