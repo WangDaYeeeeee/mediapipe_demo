@@ -1,5 +1,5 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
-import { VideoFrameBuffer, VideoResult } from "./video_buffer";
+import { getVideoResult, processVideoAsync, VideoFrameBuffer, VideoResult } from "./video_buffer";
 import { showNotification } from "./notification";
 
 // 页面加载完成后初始化应用
@@ -333,35 +333,43 @@ class FaceVerification {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // 活体检测（炫彩）
-    const reflectDataSuccess = await this.dazzle((frame, progress) => {
-      console.log('dazzle-frame', frame);
-      if (typeof frame === 'string') {
-        this.updateUI('dazzling', { tipMessage: `${frame} (${progress})` });
-      } else {
-        this.updateUI('dazzling', { tipMessage: `请保持不动 (${progress})` });
-      }
-    });
+    // const reflectDataSuccess = await this.dazzle((frame, progress) => {
+    //   console.log('dazzle-frame', frame);
+    //   if (typeof frame === 'string') {
+    //     this.updateUI('dazzling', { tipMessage: `${frame} (${progress})` });
+    //   } else {
+    //     this.updateUI('dazzling', { tipMessage: `请保持不动 (${progress})` });
+    //   }
+    // });
+    this.videoBuffer.clear();
+    const recordingStartTime = Date.now();
+    while (Date.now() - recordingStartTime < 2000) {
+      this.videoBuffer.addFrame(this.video);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const blob = await this.videoBuffer.getZip();
     showNotification('📷 采集完成', 'success');
 
-    const actions: { actionId: number, base64: string }[] =[];
-    for (const actionId of actionIdList) {
-      const actionName = ACTION_MAP[actionId]?.name;
-      const base64 = await capturedVideos[actionId];
-      actions.push({ actionId, base64 });
-      console.log(`${actionName}视频处理完成`, base64);
-    }
-    console.log('reflectDataSuccess', reflectDataSuccess);
+    // const actions: { actionId: number, base64: string }[] =[];
+    // for (const actionId of actionIdList) {
+    //   const actionName = ACTION_MAP[actionId]?.name;
+    //   const base64 = await capturedVideos[actionId];
+    //   actions.push({ actionId, base64 });
+    //   console.log(`${actionName}视频处理完成`, base64);
+    // }
+    // console.log('reflectDataSuccess', reflectDataSuccess);
     
-    // 尝试复制到剪切板
-    await this.copyToClipboard({ reflectDataSuccess, actions });
+    // // 尝试复制到剪切板
+    // await this.copyToClipboard({ reflectDataSuccess, actions });
     
-    // 检查是否成功复制到剪切板
-    const clipboardSuccess = !(window as any).lastVerificationResult;
-    const tipMessage = clipboardSuccess 
-      ? '核验完成，结果已复制到剪切板' 
-      : '核验完成，结果已存储到控制台，请手动复制';
+    // // 检查是否成功复制到剪切板
+    // const clipboardSuccess = !(window as any).lastVerificationResult;
+    // const tipMessage = clipboardSuccess 
+    //   ? '核验完成，结果已复制到剪切板' 
+    //   : '核验完成，结果已存储到控制台，请手动复制';
     
-    this.updateUI('done', { tipMessage });
+    // this.updateUI('done', { tipMessage });
+    this.updateUI('done', { tipMessage: '采集完成，zip大小: ' + (blob.size / 1024 / 1024).toFixed(2) + 'MB' });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();

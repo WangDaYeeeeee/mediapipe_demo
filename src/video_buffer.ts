@@ -1,8 +1,11 @@
+import JSZip from "jszip";
+
 // 视频帧缓冲区接口
 export interface VideoFrameBuffer {
   readonly maxFrames: number;
   addFrame(video: HTMLVideoElement): void;
   getFrames(): Promise<VideoResult>;
+  getZip(): Promise<Blob>;
   capturedNormalImage(video: HTMLVideoElement): Promise<{
     frame: string;
     width: number;
@@ -83,6 +86,47 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
     if (this.frames.length > this.maxFrames) {
       this.frames.shift(); // 移除最旧的帧
     }
+  }
+
+  async getZip(): Promise<Blob> {
+    if (this.frames.length === 0) {
+      throw new Error('没有可处理的帧');
+    }
+
+    console.log(`开始处理 ${this.frames.length} 帧图片...`);
+    const zip = new JSZip();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+
+    // 设置 canvas 尺寸
+    canvas.width = this.frames[0].width;
+    canvas.height = this.frames[0].height;
+
+    // 1. 逐帧转换为 PNG Blob 并添加到 ZIP
+    for (let i = 0; i < this.frames.length; i++) {
+      ctx.putImageData(this.frames[i], 0, 0);
+      
+      // 使用 canvas.toBlob 将当前画面转换为 PNG Blob
+      const pngBlob: Blob = (await new Promise<Blob | null>(resolve => {
+        canvas.toBlob(resolve, 'image/png');
+      }))!;
+
+      // 将 Blob 添加到 ZIP 文件中，文件名为 frame_001.png, frame_002.png...
+      const fileName = `frame_${i.toString().padStart(3, '0')}.png`;
+      zip.file(fileName, pngBlob);
+    }
+
+    console.log('所有帧已添加到 ZIP 对象中，开始生成压缩包...');
+
+    // 2. 生成 ZIP 压缩包 (Blob 格式)
+    const zipFileBlob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE', // 使用 DEFLATE 压缩算法
+      compressionOptions: {
+        level: 9 // 最高压缩等级
+      }
+    });
+    return zipFileBlob;
   }
 
   // 根据采集的视频帧 生成动作视频
