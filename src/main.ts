@@ -15,11 +15,11 @@ type VerificationStep = 'preparing' | 'error' | 'detecting_action_1' | 'detectin
 
 type OnFrame = (frame: string | SingleFaceLandmarkerResult) => void;
 
-interface ReflectDataSuccess {
-  readonly colorData: string,
-  readonly colorList: string[];
-  reflectFrames: ReflectFrame[];
-}
+// interface ReflectDataSuccess {
+//   readonly colorData: string,
+//   readonly colorList: string[];
+//   reflectFrames: ReflectFrame[];
+// }
 
 export interface ReflectFrame {
   readonly frame: string;
