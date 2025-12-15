@@ -347,7 +347,7 @@ class FaceVerification {
       this.videoBuffer.addFrame(this.video);
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    const blob = await this.videoBuffer.getZip();
+    const zip = await this.videoBuffer.getZip();
     showNotification('📷 采集完成', 'success');
 
     // const actions: { actionId: number, base64: string }[] =[];
@@ -369,7 +369,9 @@ class FaceVerification {
     //   : '核验完成，结果已存储到控制台，请手动复制';
     
     // this.updateUI('done', { tipMessage });
-    this.updateUI('done', { tipMessage: '采集完成，zip大小: ' + (blob.size / 1024 / 1024).toFixed(2) + 'MB' });
+    this.updateUI('done', { tipMessage: '采集完成，' 
+      + 'zip大小: ' + (zip.blob.size / 1024 / 1024).toFixed(2) 
+      + 'MB，平均每帧大小: ' + (zip.frameSizesInKB.reduce((a, b) => a + b, 0) / zip.frameSizesInKB.length).toFixed(2) + 'KB' });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();

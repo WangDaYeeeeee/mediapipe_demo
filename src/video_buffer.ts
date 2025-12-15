@@ -5,7 +5,10 @@ export interface VideoFrameBuffer {
   readonly maxFrames: number;
   addFrame(video: HTMLVideoElement): void;
   getFrames(): Promise<VideoResult>;
-  getZip(): Promise<Blob>;
+  getZip(): Promise<{
+    blob: Blob;
+    frameSizesInKB: number[];
+  }>;
   capturedNormalImage(video: HTMLVideoElement): Promise<{
     frame: string;
     width: number;
@@ -88,7 +91,10 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
     }
   }
 
-  async getZip(): Promise<Blob> {
+  async getZip(): Promise<{
+    blob: Blob;
+    frameSizesInKB: number[];
+  }> {
     if (this.frames.length === 0) {
       throw new Error('没有可处理的帧');
     }
@@ -126,7 +132,10 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
         level: 9 // 最高压缩等级
       }
     });
-    return zipFileBlob;
+    return {
+      blob: zipFileBlob,
+      frameSizesInKB: this.frames.map(frame => frame.data.length / 1024),
+    };
   }
 
   // 根据采集的视频帧 生成动作视频
