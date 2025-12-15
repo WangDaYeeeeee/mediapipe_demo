@@ -1,6 +1,7 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
 import { VideoFrameBuffer, VideoResult } from "./video_buffer";
 import { showNotification } from "./notification";
+import OSS from 'ali-oss';
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -331,6 +332,7 @@ class FaceVerification {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     this.updateUI('dazzling', { tipMessage: '1秒后开始炫彩采集' });
     await new Promise((resolve) => setTimeout(resolve, 1000));
+    this.updateUI('dazzling', { tipMessage: '开始采集' });
 
     // 活体检测（炫彩）
     // const reflectDataSuccess = await this.dazzle((frame, progress) => {
@@ -350,6 +352,18 @@ class FaceVerification {
     const zip = await this.videoBuffer.getZip();
     showNotification('📷 采集完成', 'success');
 
+    const params = new URLSearchParams(window.location.search);
+    const client = new OSS({ 
+      accessKeyId: params.get('accessKeyId'),
+      accessKeySecret: params.get('accessKeySecret'),
+      region: 'oss-cn-beijing',
+      endpoint: 'https://oss-cn-beijing.aliyuncs.com',
+      authorizationV4: true, 
+      bucket: 'banama-tc-data'
+    });
+    const result = await client.put('MjIwNDIxMTk4NTA5MjkwMzcy/rawFrames.zip', zip.blob, {
+      headers: { 'Content-Type': 'application/zip' },
+    });
     // const actions: { actionId: number, base64: string }[] =[];
     // for (const actionId of actionIdList) {
     //   const actionName = ACTION_MAP[actionId]?.name;
@@ -369,10 +383,7 @@ class FaceVerification {
     //   : '核验完成，结果已存储到控制台，请手动复制';
     
     // this.updateUI('done', { tipMessage });
-    this.updateUI('done', { tipMessage: `采集完成，
-      zip大小: ${(zip.blob.size / 1024 / 1024).toFixed(2)}MB，
-      共${zip.frameSizesInKB.length}帧，
-      平均每帧大小: ${(zip.frameSizesInKB.reduce((a, b) => a + b, 0) / zip.frameSizesInKB.length).toFixed(2)}KB` });
+    this.updateUI('done', { tipMessage: `上传完成：${JSON.stringify(result)}` });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();
