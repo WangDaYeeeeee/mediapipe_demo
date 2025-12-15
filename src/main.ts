@@ -369,9 +369,10 @@ class FaceVerification {
     //   : '核验完成，结果已存储到控制台，请手动复制';
     
     // this.updateUI('done', { tipMessage });
-    this.updateUI('done', { tipMessage: '采集完成，' 
-      + 'zip大小: ' + (zip.blob.size / 1024 / 1024).toFixed(2) 
-      + 'MB，平均每帧大小: ' + (zip.frameSizesInKB.reduce((a, b) => a + b, 0) / zip.frameSizesInKB.length).toFixed(2) + 'KB' });
+    this.updateUI('done', { tipMessage: `采集完成，
+      zip大小: ${(zip.blob.size / 1024 / 1024).toFixed(2)}MB，
+      共${zip.frameSizesInKB.length}帧，
+      平均每帧大小: ${(zip.frameSizesInKB.reduce((a, b) => a + b, 0) / zip.frameSizesInKB.length).toFixed(2)}KB` });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();

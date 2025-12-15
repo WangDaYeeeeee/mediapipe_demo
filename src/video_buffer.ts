@@ -109,13 +109,15 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
     canvas.height = this.frames[0].height;
 
     // 1. 逐帧转换为 PNG Blob 并添加到 ZIP
+    const frameSizesInKB: number[] = [];
     for (let i = 0; i < this.frames.length; i++) {
       ctx.putImageData(this.frames[i], 0, 0);
-      
       // 使用 canvas.toBlob 将当前画面转换为 PNG Blob
       const pngBlob: Blob = (await new Promise<Blob | null>(resolve => {
         canvas.toBlob(resolve, 'image/png');
       }))!;
+      frameSizesInKB.push(pngBlob.size / 1024);
+
 
       // 将 Blob 添加到 ZIP 文件中，文件名为 frame_001.png, frame_002.png...
       const fileName = `frame_${i.toString().padStart(3, '0')}.png`;
@@ -134,7 +136,7 @@ class VideoFrameBufferImpl implements VideoFrameBuffer {
     });
     return {
       blob: zipFileBlob,
-      frameSizesInKB: this.frames.map(frame => frame.data.length / 1024),
+      frameSizesInKB: frameSizesInKB,
     };
   }
 
