@@ -1,7 +1,7 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
 import { VideoFrameBuffer, VideoResult } from "./video_buffer";
 import { showNotification } from "./notification";
-import OSS from 'ali-oss';
+// import OSS from 'ali-oss';
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
