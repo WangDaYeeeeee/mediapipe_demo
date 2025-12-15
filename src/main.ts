@@ -350,20 +350,10 @@ class FaceVerification {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     const zip = await this.videoBuffer.getZip();
-    showNotification('📷 采集完成', 'success');
-
-    const params = new URLSearchParams(window.location.search);
-    const client = new OSS({ 
-      accessKeyId: params.get('accessKeyId'),
-      accessKeySecret: params.get('accessKeySecret'),
-      region: 'oss-cn-beijing',
-      endpoint: 'https://oss-cn-beijing.aliyuncs.com',
-      authorizationV4: true, 
-      bucket: 'banama-tc-data'
-    });
-    const result = await client.put('MjIwNDIxMTk4NTA5MjkwMzcy/rawFrames.zip', zip.blob, {
-      headers: { 'Content-Type': 'application/zip' },
-    });
+    showNotification('📷 采集完成，开始上传...', 'success');
+    this.updateUI('dazzling', { tipMessage: '开始下载zip文件' });
+    this.downloadFile(zip.blob, 'rawFrames.zip');
+    
     // const actions: { actionId: number, base64: string }[] =[];
     // for (const actionId of actionIdList) {
     //   const actionName = ACTION_MAP[actionId]?.name;
@@ -383,7 +373,7 @@ class FaceVerification {
     //   : '核验完成，结果已存储到控制台，请手动复制';
     
     // this.updateUI('done', { tipMessage });
-    this.updateUI('done', { tipMessage: `上传完成：${JSON.stringify(result)}` });
+    this.updateUI('done', { tipMessage: `done` });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();
@@ -901,16 +891,16 @@ class FaceVerification {
   }
 
   // 下载文件
-  // private downloadFile(blob: Blob, filename: string): void {
-  //   const url = URL.createObjectURL(blob);
-  //   const a = document.createElement('a');
-  //   a.href = url;
-  //   a.download = filename;
-  //   document.body.appendChild(a);
-  //   a.click();
-  //   document.body.removeChild(a);
-  //   URL.revokeObjectURL(url);
-  // }
+  private downloadFile(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   /**
    * 验证最大帧数输入框的值
