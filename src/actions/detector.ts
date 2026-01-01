@@ -149,7 +149,10 @@ export abstract class SequentialActionDetector implements ActionDetector {
 
     // 如果滑动窗口长度超过窗口时长，则移除最早的记录
     const validTimestamp = performance.now() - this.windowDurationInMillis;
-    this.slidingWindow.filter(r => r.timestampInMillis >= validTimestamp);
+    while (this.slidingWindow.length > 0 
+      && this.slidingWindow[0].timestampInMillis < validTimestamp) {
+      this.slidingWindow.shift();
+    }
 
     // 对连续动作进行检测
     return this.sequentialDetect([...this.slidingWindow], size);
