@@ -238,6 +238,32 @@ export class FaceDetector {
     return jawOpen < 0.1
   }
 
+  /**
+   * 获取头部朝向角度（欧拉角）
+   * @returns { yaw: 左右转头角度, pitch: 上下点头角度, roll: 头部倾斜角度 }
+   */
+  public getFaceOrientation(singleResult: SingleFaceLandmarkerResult): { yaw: number; pitch: number; roll: number } | null {
+    if (!singleResult.facialTransformationMatrixes) {
+      return null;
+    }
+    
+    const matrix = singleResult.facialTransformationMatrixes;
+    const rotationMatrix = [
+      [matrix.data[0], matrix.data[1], matrix.data[2]],
+      [matrix.data[4], matrix.data[5], matrix.data[6]],
+      [matrix.data[8], matrix.data[9], matrix.data[10]]
+    ];
+    
+    // pitch: 上下点头角度（正值向下，负值向上）
+    const pitch = Math.atan2(rotationMatrix[2][1], rotationMatrix[2][2]) * 180 / Math.PI;
+    // yaw: 左右转头角度（正值向右，负值向左）
+    const yaw = Math.asin(-rotationMatrix[2][0]) * 180 / Math.PI;
+    // roll: 头部倾斜角度
+    const roll = Math.atan2(rotationMatrix[1][0], rotationMatrix[0][0]) * 180 / Math.PI;
+    
+    return { yaw, pitch, roll };
+  }
+
   public detectFaceArea(singleResult: SingleFaceLandmarkerResult): { 
     minX: number, 
     minY: number, 

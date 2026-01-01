@@ -1,7 +1,6 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
-import { VideoFrameBuffer, VideoResult } from "./video_buffer";
-import { showNotification } from "./notification";
-// import OSS from 'ali-oss';
+import { FarToCloseDetector, CloseToFarDetector } from "./actions/distance";
+import { VideoSize } from "./actions/detector";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,31 +11,11 @@ interface UIState {
   readonly tipMessage?: string;
 }
 
-type VerificationStep = 'preparing' | 'error' | 'detecting_action_1' | 'detecting_action_2' | 'dazzling' | 'done';
+type VerificationStep = 'preparing' | 'error' | FaceAction | 'done';
 
 type OnFrame = (frame: string | SingleFaceLandmarkerResult) => void;
 
-// interface ReflectDataSuccess {
-//   readonly colorData: string,
-//   readonly colorList: string[];
-//   reflectFrames: ReflectFrame[];
-// }
-
-export interface ReflectFrame {
-  readonly frame: string;
-  readonly uncroppedFrame: string;
-  readonly time: number;
-  readonly x: number;
-  readonly y: number;
-  readonly faceArea: { 
-    minX: number; 
-    minY: number; 
-    maxX: number; 
-    maxY: number; 
-  };
-}
-
-const videoSize = { width: 480, height: 640 };
+const videoSize: VideoSize = { width: 480, height: 640 };
 
 enum FaceAction {
   NOD_HEAD = 'nod_head', // 点头
@@ -47,7 +26,6 @@ enum FaceAction {
   TURN_RIGHT = 'turn_right', // 缓慢向右转头
   FAR_TO_CLOSE = 'far_to_close', // 离近一点
   CLOSE_TO_FAR = 'close_to_far', // 离远一点
-  NONE = 'none', // 无动作
 }
 
 const ACTION_MAP: Record<number, { action: FaceAction, name: string }> = {
@@ -73,10 +51,13 @@ class FaceVerification {
   // private colorBackground!: HTMLDivElement;
 
   private faceDetector: FaceDetector | undefined;
-  private videoBuffer = VideoFrameBuffer.create();
   private onFrame: OnFrame | undefined;
   private cameraOn: boolean = false;
   private lastVideoTime: number = 0;
+
+  // 距离检测器（仅在需要时创建）
+  private farToCloseDetector = new FarToCloseDetector();
+  private closeToFarDetector = new CloseToFarDetector();
 
   private updateUI(step: VerificationStep, state: UIState): void {
     if (!!state.tipMessage) {
@@ -92,25 +73,50 @@ class FaceVerification {
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'none';
         break;
-      case 'detecting_action_1':
+      case FaceAction.BLINK:
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'flex';
         this.updateProgress(0);
         break;
-      case 'detecting_action_2':
+      case FaceAction.OPEN_MOUTH:
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'flex';
         this.updateProgress(1);
         break;
-      case 'dazzling':
+      case FaceAction.NOD_HEAD:
         this.restartBtn.disabled = true;
         this.progressIndicator.style.display = 'flex';
         this.updateProgress(2);
         break;
+      case FaceAction.SHAKE_HEAD:
+        this.restartBtn.disabled = true;
+        this.progressIndicator.style.display = 'flex';
+        this.updateProgress(3);
+        break;
+      case FaceAction.TURN_LEFT:
+        this.restartBtn.disabled = true;
+        this.progressIndicator.style.display = 'flex';
+        this.updateProgress(4);
+        break;
+      case FaceAction.TURN_RIGHT:
+        this.restartBtn.disabled = true;
+        this.progressIndicator.style.display = 'flex';
+        this.updateProgress(5);
+        break;
+      case FaceAction.FAR_TO_CLOSE:
+        this.restartBtn.disabled = true;
+        this.progressIndicator.style.display = 'flex';
+        this.updateProgress(6);
+        break;
+      case FaceAction.CLOSE_TO_FAR:
+        this.restartBtn.disabled = true;
+        this.progressIndicator.style.display = 'flex';
+        this.updateProgress(7);
+        break;
       case 'done':
         this.restartBtn.disabled = false;
         this.progressIndicator.style.display = 'flex';
-        this.updateProgress(3);
+        this.updateProgress(8);
         break;
     }
   }
@@ -152,14 +158,6 @@ class FaceVerification {
       this.resetUI();
       this.startDetect();
     });
-
-    // 添加复制结果按钮事件监听
-    const copyResultBtn = document.getElementById('copyResultBtn') as HTMLButtonElement;
-    if (copyResultBtn) {
-      copyResultBtn.addEventListener('click', () => {
-        this.manualCopyResult();
-      });
-    }
 
     // 添加调试信息切换功能
     const debugToggle = document.getElementById('debugToggle') as HTMLButtonElement;
@@ -284,96 +282,30 @@ class FaceVerification {
     }
 
     // 启动检测流程
-    this.updateUI('detecting_action_1', { tipMessage: '请正对取景器' });
     this.predictWebcam();
 
-    // 动作检测
-    const actionIdList = [1, 2]; // 动作检测序列，写死
-    const actionStepMap: Record<number, VerificationStep> = {
-      1: 'detecting_action_1',
-      2: 'detecting_action_2',
-    };
-    const capturedVideos: Record<number, Promise<string>> = {};
-    for (const actionId of actionIdList) {
-      const actionName = ACTION_MAP[actionId]?.name;
-      this.updateUI(actionStepMap[actionId], { tipMessage: `请${actionName}` });
+    // 动作检测 - 检测所有8种动作
+    for (const actionId of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const name = ACTION_MAP[actionId].name;
+      const action = ACTION_MAP[actionId].action;
+      this.updateUI(action, { tipMessage: `请${name}` });
 
-      const actionResult = await this.detectAction(actionId, (frame, done) => {
+      const actionResult = await this.detectAction(action, (frame, done) => {
         if (typeof frame === 'string') {
-          console.log(`${actionName}检测`, frame);
+          console.log(`${name}检测`, frame);
         } else if (!done) {
-          Math.random() > 0.1 && console.log(`${actionName}检测`);
+          Math.random() > 0.1 && console.log(`${name}检测中...`);
         } else {
-          console.log(`${actionName}检测`, `已捕获${actionName}瞬间，立即进入下一个动作`);
+          console.log(`${name}检测完成，已捕获${name}瞬间`);
         }
       });
 
-      // 动作检测完成，立即进入下一个动作，视频处理异步进行
-      const videoPromise = actionResult.videoPromise;
-      capturedVideos[actionId] = new Promise(async (resolve, reject) => {
-        const blob = (await videoPromise).blob;
-
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === 'string') {
-            let base64 = reader.result as string;
-            base64 = base64.split(',')[1];
-            resolve(base64);
-          } else {
-            reject(new Error('Failed to convert blob to base64'));
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      if (actionResult.detected) {
+        console.log(`✅ ${name}检测成功`);
+      }
     }
-
-    this.updateUI('dazzling', { tipMessage: '2秒后开始炫彩采集' });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    this.updateUI('dazzling', { tipMessage: '1秒后开始炫彩采集' });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    this.updateUI('dazzling', { tipMessage: '开始采集' });
-
-    // 活体检测（炫彩）
-    // const reflectDataSuccess = await this.dazzle((frame, progress) => {
-    //   console.log('dazzle-frame', frame);
-    //   if (typeof frame === 'string') {
-    //     this.updateUI('dazzling', { tipMessage: `${frame} (${progress})` });
-    //   } else {
-    //     this.updateUI('dazzling', { tipMessage: `请保持不动 (${progress})` });
-    //   }
-    // });
-    this.videoBuffer.clear();
-    const recordingStartTime = Date.now();
-    while (Date.now() - recordingStartTime < 2000) {
-      this.videoBuffer.addFrame(this.video);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    const zip = await this.videoBuffer.getZip();
-    showNotification('📷 采集完成，开始上传...', 'success');
-    this.updateUI('dazzling', { tipMessage: '开始下载zip文件' });
-    this.downloadFile(zip.blob, 'rawFrames.zip');
     
-    // const actions: { actionId: number, base64: string }[] =[];
-    // for (const actionId of actionIdList) {
-    //   const actionName = ACTION_MAP[actionId]?.name;
-    //   const base64 = await capturedVideos[actionId];
-    //   actions.push({ actionId, base64 });
-    //   console.log(`${actionName}视频处理完成`, base64);
-    // }
-    // console.log('reflectDataSuccess', reflectDataSuccess);
-    
-    // // 尝试复制到剪切板
-    // await this.copyToClipboard({ reflectDataSuccess, actions });
-    
-    // // 检查是否成功复制到剪切板
-    // const clipboardSuccess = !(window as any).lastVerificationResult;
-    // const tipMessage = clipboardSuccess 
-    //   ? '核验完成，结果已复制到剪切板' 
-    //   : '核验完成，结果已存储到控制台，请手动复制';
-    
-    // this.updateUI('done', { tipMessage });
-    this.updateUI('done', { tipMessage: `done` });
+    this.updateUI('done', { tipMessage: '所有动作检测完成！' });
     // 停止摄像头
     this.cameraOn = false;
     this.stopCamera();
@@ -397,16 +329,14 @@ class FaceVerification {
   }
 
   private async detectAction(
-    actionId: number, 
+    action: FaceAction, 
     onFrame: (frame: string | SingleFaceLandmarkerResult, done: boolean) => void
-  ): Promise<{
-    detected: boolean;
-    videoPromise: Promise<VideoResult>;
-  }> {
+  ): Promise<{ detected: boolean }> {
     let actionDetected = false;
     let totalFramesAfterDetection = 0; // 检测到后的帧计数
     const continueFrames = 10; // 检测到动作后继续采集10帧（约0.3秒@30fps）
     let resolved = false;
+
     return new Promise((resolve, _) => {
       this.onFrame = (frame) => {
         try {
@@ -414,143 +344,61 @@ class FaceVerification {
             return;
           }
           if (typeof frame === 'string') {
-            // do nothing.
-          } else if (!actionDetected) {
-            switch (actionId) {
-              case 1:
+            // 错误消息，不做处理
+            return;
+          }
+
+          if (!actionDetected) {
+            switch (action) {
+              case FaceAction.BLINK: // 眨眨眼
                 actionDetected = this.faceDetector!.detectBlink(frame);
                 break;
-              case 2:
+              
+              case FaceAction.OPEN_MOUTH: // 张张嘴
                 actionDetected = this.faceDetector!.detectMouthOpen(frame);
-                break;            
-              default:
-                console.error('不支持的动作id:', actionId);
+                break;
+              
+              case FaceAction.NOD_HEAD: // 点点头
+                actionDetected = true;
+                break;
+              
+              case FaceAction.SHAKE_HEAD: // 摇摇头
+                actionDetected = true;
+                break;
+              
+              case FaceAction.TURN_LEFT: // 缓慢向左转头
+                actionDetected = true;
+                break;
+              
+              case FaceAction.TURN_RIGHT: // 缓慢向右转头
+                actionDetected = true;
+                break;
+              
+              case FaceAction.FAR_TO_CLOSE: // 离近一点
+                actionDetected = this.farToCloseDetector.detect(frame, videoSize);
+                break;
+              
+              case FaceAction.CLOSE_TO_FAR: // 离远一点
+                actionDetected = this.closeToFarDetector.detect(frame, videoSize);
                 break;
             }
           } else {
             // 已经检测到动作，继续采集几帧
             totalFramesAfterDetection++;
 
-            // 采集够足够的帧后，获取视频
+            // 采集够足够的帧后，完成检测
             if (totalFramesAfterDetection >= continueFrames) {
               resolved = true;
               onFrame(frame, true);
-              const videoPromise = this.videoBuffer.getFrames();
-              // 立即清空缓冲区，为下一个动作做准备
-              this.videoBuffer.clear();
-              resolve({
-                detected: true,
-                videoPromise: videoPromise
-              });
+              resolve({ detected: true });
             }
           }
-        } catch (error) { }
+        } catch (error) {
+          console.error('检测动作时发生错误:', error);
+        }
       };
     });
   }
-
-  // private async dazzle(
-  //   onFrame: (frame: string | SingleFaceLandmarkerResult, progress: string) => void
-  // ): Promise<ReflectDataSuccess> {
-  //   const reflectFrames: ReflectFrame[] = [];
-  //   const unitDuration = 120;
-  //   const colorList = [
-  //     [0, 0, 0, 76], 
-  //     [115, 26, 67, 159],
-  //     [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
-  //     [31, 191, 70, 242], [31, 191, 70, 242], [31, 191, 70, 242],
-  //     [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242], [230, 53, 135, 242],
-  //     [115, 26, 67, 159],
-  //     [0, 0, 0, 76],
-  //     [204, 204, 204, 17],
-  //   ];
-  //   let index = 0;
-  //   let dazzling = true;
-  //   this.onFrame = (frame) => {
-  //     if (dazzling && typeof frame === 'object') {
-  //       const { base64, uncroppedBase64, mouthCenter, faceArea } = this.capturePhoto(frame);
-  //         // 将脸部图片转换为base64并添加到结果中
-  //         reflectFrames.push({
-  //           frame: base64.split(',')[1],
-  //           uncroppedFrame: uncroppedBase64.split(',')[1],
-  //           time: Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`),
-  //           x: mouthCenter!.x,
-  //           y: mouthCenter!.y,
-  //           faceArea: faceArea,
-  //         });
-  //     }
-  //     onFrame(frame, `${index}/${colorList.length}`);
-  //   };
-  //   for (const _ of colorList) {
-  //     index += 1;
-  //     // const [r, g, b, a] = color;
-  //     // // 在炫彩打光过程中，每个颜色都叠加白色背景以提升打光效率
-  //     // this.colorBackground.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-  //     // this.colorBackground.style.opacity = '1';
-  //     // await new Promise((resolve) => setTimeout(resolve, 100));
-
-  //     // 使用requestAnimationFrame和performance.now()保证时间精准
-  //     const startTime = performance.now();
-  //     await new Promise<void>((resolve) => {
-  //       function checkTime() {
-  //         if (performance.now() - startTime >= unitDuration) {
-  //           resolve();
-  //         } else {
-  //           requestAnimationFrame(checkTime);
-  //         }
-  //       }
-  //       requestAnimationFrame(checkTime);
-  //     });
-  //   }
-  //   // this.colorBackground.style.backgroundColor = 'rgb(0, 0, 0)';
-  //   // this.colorBackground.style.opacity = '0';
-  //   dazzling = false;
-    
-  //   // 获取用户输入的最大帧数，如果无效则使用默认计算值
-  //   const userMaxFrames = this.getUserMaxFrames();
-  //   const defaultMaxFrames = Math.floor((unitDuration * colorList.length) / 40);
-  //   const maxFrames = userMaxFrames || defaultMaxFrames;
-    
-  //   console.log(`帧数处理信息:`, {
-  //     原始帧数: reflectFrames.length,
-  //     用户设置: userMaxFrames || '未设置',
-  //     默认计算值: defaultMaxFrames,
-  //     实际使用: maxFrames,
-  //     是否使用用户设置: !!userMaxFrames
-  //   });
-    
-  //   const processedFrames = this.uniformlySampleFrames(reflectFrames, maxFrames);
-    
-  //   const result: ReflectDataSuccess = {
-  //     colorData: "1 120 3 2 3 3 0 0 ;ejEHAAMAAAAAAAAAeAAAAAAAAAAxxK5oAAAAAD1mBQAAAAAAAAAATB+/RvLmNYfyH79G8gMAAAADAAAAAwAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAAFAAAABQAAAAUAAAA=;6bb32b13e7649435844e063b24bb0b0d",
-  //     colorList: [
-  //       "[0,0,0,76]",
-  //       "[15,95,35,159]",
-  //       "[31,191,70,242]",
-  //       "[31,191,70,242]",
-  //       "[31,191,70,242]",
-  //       "[31,191,70,242]",
-  //       "[230,53,135,242]",
-  //       "[230,53,135,242]",
-  //       "[230,53,135,242]",
-  //       "[230,53,135,242]",
-  //       "[55,30,200,242]",
-  //       "[55,30,200,242]",
-  //       "[55,30,200,242]",
-  //       "[55,30,200,242]",
-  //       "[55,30,200,242]",
-  //       "[27,15,100,159]",
-  //       "[0,0,0,76]",
-  //       "[204,204,204,17]"
-  //     ],
-  //     reflectFrames: processedFrames.map(frame => ({
-  //       ...frame,
-  //       x: Math.round(frame.x),
-  //       y: Math.round(frame.y),
-  //     })),
-  //   };
-  //   return result;
-  // }
 
   private updateDebugInfo(result: FaceDetectionResult) {
     const faceAreaEl = document.getElementById('faceArea');
@@ -574,14 +422,14 @@ class FaceVerification {
 
   private showCanvasDebug(): void {
     if (!this.faceDetector || !this.cameraOn) {
-      showNotification('请先启动摄像头并检测到人脸', 'error');
+      console.error('请先启动摄像头并检测到人脸');
       return;
     }
 
     // 获取当前视频帧的检测结果
     const result = this.faceDetector.detect(this.video);
     if (result.face === undefined) {
-      showNotification('未检测到人脸，无法捕获照片', 'error');
+      console.error('未检测到人脸，无法捕获照片');
       return;
     }
 
@@ -620,8 +468,7 @@ class FaceVerification {
         });
       }
     } catch (error) {
-      console.error('Canvas调试过程中发生错误:', error);
-      showNotification('Canvas调试失败: ' + error, 'error');
+      console.error('Canvas调试失败: ' + error);
     }
   }
 
@@ -637,7 +484,6 @@ class FaceVerification {
         // 更新调试信息
         this.updateDebugInfo(result);
         
-        this.videoBuffer.addFrame(this.video);
         this.onFrame?.(result.message !== undefined ? result.message : result.face!);
       }
     } catch (error) {
@@ -816,90 +662,8 @@ class FaceVerification {
     // 显示结果区域
     this.resultArea.style.display = 'none';
     
-    // 清空帧缓冲区
-    this.videoBuffer.clear();
-    
     // 清除存储的结果
     delete (window as any).lastVerificationResult;
-  }
-
-  // 复制结果到剪切板
-  // private async copyToClipboard(data: object): Promise<void> {
-  //   try {
-  //     // 将数据转换为JSON字符串
-  //     const jsonString = JSON.stringify(data, null, 2);
-      
-  //     // 使用现代Clipboard API
-  //     if (navigator.clipboard && window.isSecureContext) {
-  //       try {
-  //         await navigator.clipboard.writeText(jsonString);
-  //         console.log('结果已复制到剪切板');
-  //         return;
-  //       } catch (clipboardError) {
-  //         console.warn('Clipboard API 失败，尝试降级方案:', clipboardError);
-  //         // 如果 Clipboard API 失败，继续使用降级方案
-  //       }
-  //     }
-      
-  //     // 降级方案：使用传统的document.execCommand
-  //     const textArea = document.createElement('textarea');
-  //     textArea.value = jsonString;
-  //     textArea.style.position = 'fixed';
-  //     textArea.style.left = '-999999px';
-  //     textArea.style.top = '-999999px';
-  //     document.body.appendChild(textArea);
-  //     textArea.focus();
-  //     textArea.select();
-      
-  //     const successful = document.execCommand('copy');
-  //     document.body.removeChild(textArea);
-      
-  //     if (successful) {
-  //       console.log('结果已复制到剪切板');
-  //     } else {
-  //       console.error('复制到剪切板失败');
-  //       // 如果都失败了，将数据存储到全局变量，供用户手动复制
-  //       (window as any).lastVerificationResult = jsonString;
-  //       console.log('结果已存储到 window.lastVerificationResult，请手动复制');
-  //     }
-  //   } catch (error) {
-  //     console.error('复制到剪切板时发生错误:', error);
-  //     // 将数据存储到全局变量，供用户手动复制
-  //     const jsonString = JSON.stringify(data, null, 2);
-  //     (window as any).lastVerificationResult = jsonString;
-  //     console.log('结果已存储到 window.lastVerificationResult，请手动复制');
-  //   }
-  // }
-
-  // 手动复制结果（用户点击按钮触发）
-  private async manualCopyResult(): Promise<void> {
-    const lastResult = (window as any).lastVerificationResult;
-    if (!lastResult) {
-      showNotification('没有可复制的结果', 'error');
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(lastResult);
-      showNotification('结果已复制到剪切板', 'success');
-      // 清除存储的结果
-      delete (window as any).lastVerificationResult;
-    } catch (error) {
-      console.error('手动复制失败:', error);
-      showNotification('复制失败，请手动复制控制台中的结果', 'error');
-    }
-  }
-
-  // 下载文件
-  private downloadFile(blob: Blob, filename: string): void {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   /**
@@ -924,52 +688,4 @@ class FaceVerification {
       this.maxFramesInput.style.borderColor = 'rgba(0, 255, 0, 0.5)';
     }
   }
-
-  /**
-   * 获取用户输入的最大帧数，如果输入无效则返回null
-   * @returns 有效的最大帧数或null
-   */
-  // private getUserMaxFrames(): number | null {
-  //   const inputValue = this.maxFramesInput.value.trim();
-    
-  //   if (!inputValue) {
-  //     return null;
-  //   }
-    
-  //   const maxFrames = parseInt(inputValue, 10);
-    
-  //   // 验证输入是否为有效的正整数，且在合理范围内
-  //   if (isNaN(maxFrames) || maxFrames < 1 || maxFrames > 200) {
-  //     console.warn('无效的最大帧数输入:', inputValue, '，将使用默认计算值');
-  //     return null;
-  //   }
-    
-  //   return maxFrames;
-  // }
-
-  /**
-   * 均匀随机采样帧，保持原始时间顺序，确保无重复
-   * @param frames 原始帧数组
-   * @param targetCount 目标帧数
-   * @returns 采样后的帧数组
-   */
-  // private uniformlySampleFrames(frames: ReflectFrame[], targetCount: number): ReflectFrame[] {
-  //   // 如果目标数量大于等于帧数，直接返回所有帧
-  //   if (targetCount >= frames.length) {
-  //     return frames;
-  //   }
-
-  //   const result: ReflectFrame[] = [];
-  //   const step = frames.length / targetCount;
-
-  //   // 均匀采样
-  //   for (let i = 0; i < targetCount; i++) {
-  //     const index = Math.floor(i * step);
-  //     if (frames[index]) {
-  //       result.push(frames[index]);
-  //     }
-  //   }
-
-  //   return result;
-  // }
 }
