@@ -5,8 +5,8 @@ import { SingleFaceLandmarkerResult } from "../face_detection";
 export interface EulerAngle {
   /** 
    * **俯仰角**：低头/抬头的角度（绕穿过两耳的`x`轴旋转）
-   * - 正值 (+)： 低头
-   * - 负值 (-)： 抬头
+   * - 正值 (+)： 抬头
+   * - 负值 (-)： 低头
    */
   readonly pitch: number;
   /** 

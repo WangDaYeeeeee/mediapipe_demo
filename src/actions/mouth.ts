@@ -23,7 +23,6 @@ export class CloseMouthDetector implements ActionDetector {
 
   detect(singleResult: SingleFaceLandmarkerResult, _: VideoSize): boolean {
     const jawOpen = singleResult.faceBlendshapes.get('jawOpen') ?? 0;
-    console.log('jawOpen', jawOpen);
     return jawOpen < 0.1
   }
   

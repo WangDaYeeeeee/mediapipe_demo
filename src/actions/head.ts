@@ -16,7 +16,7 @@ export class NodHeadDetector extends SequentialActionDetector {
     const noddingCount = args?.noddingCount ?? 1;
     super(args?.windowDurationInMillis ?? (noddingCount + 1) * 600);
     this.noddingCount = noddingCount;
-    this.deltaPitchTrigger = args?.deltaPitchTrigger ?? 10;
+    this.deltaPitchTrigger = args?.deltaPitchTrigger ?? 15;
   }
 
   /**
@@ -38,27 +38,27 @@ export class NodHeadDetector extends SequentialActionDetector {
     // 一次点头的过程，俯仰角会先单调递增，再单调递减，将平滑后的数据进行分割
     let actionRecords: {
       readonly beginIndex: number; // 动作开始的下标
-      readonly action: 'head_down' | 'head_up'; // 动作类型（低头/抬头）
+      readonly action: 'head_up' | 'head_down'; // 动作类型（抬头/低头）
     }[] = []; // 动作类型是间隔出现的 => down, up, down, up, down, up, ...
     for (let i = 1; i < smoothedData.length; i ++) {
       // 如果记录为空，则需要记录第一个动作
       if (actionRecords.length == 0) {
         const action = smoothedData[i].value > smoothedData[i - 1].value 
-          ? 'head_down' 
-          : 'head_up';
+          ? 'head_up' 
+          : 'head_down';
         actionRecords.push({ beginIndex: i - 1, action });
         continue;
       }
       // 如果前序记录存在，则需要检查是否发生反转
       const prevAction = actionRecords[actionRecords.length - 1].action;
-      if (smoothedData[i].value > smoothedData[i - 1].value && prevAction === 'head_up') {
-        // 当前俯仰角比上一个更大 => 低头，此时如果前序记录为抬头，则需要记录反转
-        actionRecords.push({ beginIndex: i - 1, action: 'head_down' });
+      if (smoothedData[i].value > smoothedData[i - 1].value && prevAction === 'head_down') {
+        // 当前俯仰角比上一个更大，则为抬头，此时如果前序记录为低头，则需要记录反转
+        actionRecords.push({ beginIndex: i - 1, action: 'head_up' });
         continue;
       }
-      if (smoothedData[i].value < smoothedData[i - 1].value && prevAction === 'head_down') {
-        // 当前俯仰角比上一个更小 => 抬头，此时如果前序记录为低头，则需要记录反转
-        actionRecords.push({ beginIndex: i - 1, action: 'head_up' });
+      if (smoothedData[i].value < smoothedData[i - 1].value && prevAction === 'head_up') {
+        // 当前俯仰角比上一个更小，则为低头，此时如果前序记录为抬头，则需要记录反转
+        actionRecords.push({ beginIndex: i - 1, action: 'head_down' });
         continue;
       }
     }
@@ -118,7 +118,7 @@ export class ShakeHeadDetector extends SequentialActionDetector {
     const shakingCount = args?.shakingCount ?? 1;
     super(args?.windowDurationInMillis ?? (shakingCount + 1) * 500);
     this.shakingCount = shakingCount;
-    this.deltaYawTrigger = args?.deltaYawTrigger ?? 10;
+    this.deltaYawTrigger = args?.deltaYawTrigger ?? 15;
   }
 
   /**
