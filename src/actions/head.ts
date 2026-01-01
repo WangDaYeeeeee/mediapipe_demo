@@ -16,7 +16,7 @@ export class NodHeadDetector extends SequentialActionDetector {
     const noddingCount = args?.noddingCount ?? 1;
     super(args?.windowDurationInMillis ?? (noddingCount + 1) * 600);
     this.noddingCount = noddingCount;
-    this.deltaPitchTrigger = args?.deltaPitchTrigger ?? 15;
+    this.deltaPitchTrigger = args?.deltaPitchTrigger ?? 10;
   }
 
   /**
