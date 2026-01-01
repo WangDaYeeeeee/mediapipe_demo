@@ -1,7 +1,7 @@
 import { SingleFaceLandmarkerResult } from "../face_detection";
 import { ActionDetector, VideoSize } from "./detector";
 
-class OpenMouthDetector implements ActionDetector {
+export class OpenMouthDetector implements ActionDetector {
 
   private readonly mouthOpenThreshold: number;
 
@@ -19,7 +19,7 @@ class OpenMouthDetector implements ActionDetector {
   }
 }
 
-class CloseMouthDetector implements ActionDetector {
+export class CloseMouthDetector implements ActionDetector {
 
   detect(singleResult: SingleFaceLandmarkerResult, _: VideoSize): boolean {
     const jawOpen = singleResult.faceBlendshapes.get('jawOpen') ?? 0;

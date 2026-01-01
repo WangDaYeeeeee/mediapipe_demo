@@ -1,7 +1,7 @@
 import { SingleFaceLandmarkerResult } from "../face_detection";
 import { ActionDetector, VideoSize } from "./detector";
 
-class BlinkDetector implements ActionDetector {
+export class BlinkDetector implements ActionDetector {
 
   private readonly blinkThreshold: number;
 

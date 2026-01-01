@@ -1,6 +1,8 @@
 import { FaceDetectionResult, FaceDetector, SingleFaceLandmarkerResult } from "./face_detection";
 import { FarToCloseDetector, CloseToFarDetector } from "./actions/distance";
 import { VideoSize } from "./actions/detector";
+import { BlinkDetector } from "./actions/eyes";
+import { CloseMouthDetector, OpenMouthDetector } from "./actions/mouth";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -56,6 +58,9 @@ class FaceVerification {
   private lastVideoTime: number = 0;
 
   // 距离检测器（仅在需要时创建）
+  private blinkDetector = new BlinkDetector();
+  private mouthOpenDetector = new OpenMouthDetector();
+  private mouthCloseDetector = new CloseMouthDetector();
   private farToCloseDetector = new FarToCloseDetector();
   private closeToFarDetector = new CloseToFarDetector();
 
@@ -351,11 +356,13 @@ class FaceVerification {
           if (!actionDetected) {
             switch (action) {
               case FaceAction.BLINK: // 眨眨眼
-                actionDetected = this.faceDetector!.detectBlink(frame);
+                actionDetected = this.blinkDetector.detect(frame, videoSize);
                 break;
               
               case FaceAction.OPEN_MOUTH: // 张张嘴
-                actionDetected = this.faceDetector!.detectMouthOpen(frame);
+                actionDetected = this.mouthOpenDetector.detect(frame, videoSize);
+                const closed = this.mouthCloseDetector.detect(frame, videoSize);
+                closed;
                 break;
               
               case FaceAction.NOD_HEAD: // 点点头
