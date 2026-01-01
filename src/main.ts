@@ -3,7 +3,8 @@ import { FarToCloseDetector, CloseToFarDetector } from "./actions/distance";
 import { VideoSize } from "./actions/detector";
 import { BlinkDetector } from "./actions/eyes";
 import { CloseMouthDetector, OpenMouthDetector } from "./actions/mouth";
-import { NodHeadDetector } from "./actions/head";
+import { NodHeadDetector, ShakeHeadDetector } from "./actions/head";
+import { TurnLeftDetector, TurnRightDetector } from "./actions/orientation";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,6 +64,9 @@ class FaceVerification {
   private mouthOpenDetector = new OpenMouthDetector();
   private mouthCloseDetector = new CloseMouthDetector();
   private nodHeadDetector = new NodHeadDetector();
+  private shakeHeadDetector = new ShakeHeadDetector();
+  private turnLeftDetector = new TurnLeftDetector();
+  private turnRightDetector = new TurnRightDetector();
   private farToCloseDetector = new FarToCloseDetector();
   private closeToFarDetector = new CloseToFarDetector();
 
@@ -372,15 +376,15 @@ class FaceVerification {
                 break;
               
               case FaceAction.SHAKE_HEAD: // 摇摇头
-                actionDetected = true;
+                actionDetected = this.shakeHeadDetector.detect(frame, videoSize);
                 break;
               
               case FaceAction.TURN_LEFT: // 缓慢向左转头
-                actionDetected = true;
+                actionDetected = this.turnLeftDetector.detect(frame, videoSize);
                 break;
               
               case FaceAction.TURN_RIGHT: // 缓慢向右转头
-                actionDetected = true;
+                actionDetected = this.turnRightDetector.detect(frame, videoSize);
                 break;
               
               case FaceAction.FAR_TO_CLOSE: // 离近一点
