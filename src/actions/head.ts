@@ -33,7 +33,7 @@ export class NodHeadDetector extends SequentialActionDetector {
       timestamp: data.timestampInMillis,
     }))
     // 平滑俯仰角序列
-    const smoothedData = SequentialActionDetector.timeWeightedEMASmoothing(data, 0.05);
+    const smoothedData = data; // SequentialActionDetector.timeWeightedEMASmoothing(data, 0.05);
 
     // 一次点头的过程，俯仰角会先单调递增，再单调递减，将平滑后的数据进行分割
     let actionRecords: {
