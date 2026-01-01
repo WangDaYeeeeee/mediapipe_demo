@@ -3,6 +3,7 @@ import { FarToCloseDetector, CloseToFarDetector } from "./actions/distance";
 import { VideoSize } from "./actions/detector";
 import { BlinkDetector } from "./actions/eyes";
 import { CloseMouthDetector, OpenMouthDetector } from "./actions/mouth";
+import { NodHeadDetector } from "./actions/head";
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,6 +62,7 @@ class FaceVerification {
   private blinkDetector = new BlinkDetector();
   private mouthOpenDetector = new OpenMouthDetector();
   private mouthCloseDetector = new CloseMouthDetector();
+  private nodHeadDetector = new NodHeadDetector();
   private farToCloseDetector = new FarToCloseDetector();
   private closeToFarDetector = new CloseToFarDetector();
 
@@ -366,7 +368,7 @@ class FaceVerification {
                 break;
               
               case FaceAction.NOD_HEAD: // 点点头
-                actionDetected = true;
+                actionDetected = this.nodHeadDetector.detect(frame, videoSize);
                 break;
               
               case FaceAction.SHAKE_HEAD: // 摇摇头
