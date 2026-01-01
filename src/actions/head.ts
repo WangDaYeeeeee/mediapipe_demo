@@ -118,7 +118,7 @@ export class ShakeHeadDetector extends SequentialActionDetector {
     const shakingCount = args?.shakingCount ?? 1;
     super(args?.windowDurationInMillis ?? (shakingCount + 1) * 500);
     this.shakingCount = shakingCount;
-    this.deltaYawTrigger = args?.deltaYawTrigger ?? 15;
+    this.deltaYawTrigger = args?.deltaYawTrigger ?? 30;
   }
 
   /**

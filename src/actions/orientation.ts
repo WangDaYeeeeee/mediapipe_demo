@@ -14,7 +14,7 @@ export class TurnLeftDetector extends SequentialActionDetector {
   readonly triggers: YawTriggers;
 
   constructor(
-    triggers: YawTriggers = { finalYaw: -20, deltaYaw: 10 },
+    triggers: YawTriggers = { finalYaw: -35, deltaYaw: 10 },
     windowDurationInMillis: number = 1000,
   ) {
     super(windowDurationInMillis);
@@ -72,7 +72,7 @@ export class TurnRightDetector extends SequentialActionDetector {
   readonly triggers: YawTriggers;
 
   constructor(
-    triggers: YawTriggers = { finalYaw: 20, deltaYaw: 10 },
+    triggers: YawTriggers = { finalYaw: 35, deltaYaw: 10 },
     windowDurationInMillis: number = 1000,
   ) {
     super(windowDurationInMillis);
